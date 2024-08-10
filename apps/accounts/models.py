@@ -63,14 +63,6 @@ class CustomUser(AbstractUser):
         related_name='users'  # Changed related_name to 'users'
     )
 
-    # One-to-one relationship with self
-    author_user = models.ManyToManyField(
-        'self',
-        null=True,
-        blank=True,
-        related_name='author_company_user'
-    )
-
     # Field to denote if the user is active
     is_active = models.BooleanField(
         _('Active'),

@@ -198,3 +198,5 @@ SWAGGER_SETTINGS = {
       }
    }
 }
+
+DJANGO_ALLOW_ASYNC_UNSAFE = True

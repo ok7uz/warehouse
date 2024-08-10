@@ -166,9 +166,9 @@ class CompanySalesSerializer(serializers.ModelSerializer):
         model = Company
         fields = ["uuid", "data", 'product_count']
 
-    async def get_data(self, obj):
+    def get_data(self, obj):
         ozon = Ozon.objects.filter(company=obj).first()
-        ozon_data = await get_ozon_sales(client_id=ozon.client_id, api_token=ozon.api_token)
+        ozon_data = get_ozon_sales(client_id=ozon.client_id, api_token=ozon.api_token)
         self.product_count = len(ozon_data)
         return ozon_data
 

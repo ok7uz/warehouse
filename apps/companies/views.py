@@ -1,10 +1,10 @@
+from asgiref.sync import sync_to_async
 from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from asgiref.sync import sync_to_async
 
 from apps.companies.models import Company
 from apps.companies.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
@@ -99,11 +99,8 @@ class CompanySalesView(APIView):
         tags=['Company'],
         responses={200: CompanySalesSerializer(many=True)}
     )
-    async def get(self, request, *args, **kwargs):
-        # company = await Company.objects.aget(uuid=kwargs.get('uuid'))
-        # print(company)
-        # serializer = await sync_to_async(CompanySalesSerializer)(company, context={'request': request})
-        #
-        # # Accessing `serializer.data` also needs to be synchronous
-        # serialized_data = await sync_to_async(lambda: serializer.data)()
-        return Response({'a': 7}, status=status.HTTP_200_OK)
+    def get(self, request, company_id):
+        company = Company.objects.get(uuid=company_id)
+        serializer = CompanySalesSerializer(company, context={'request': request})
+        # serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
