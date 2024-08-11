@@ -36,10 +36,10 @@ CACHES = {
 CELERY_BEAT_SCHEDULE = {
     'update-wildberries-sales': {
         'task': 'apps.products.tasks.update_wildberries_sales',
-        'schedule': crontab(minute=0),
+        'schedule': crontab(minute=30),
     },
     'update-ozon-sales': {
         'task': 'apps.products.tasks.update_ozon_sales',
-        'schedule': crontab(minute=0),
+        'schedule': crontab(minute=30),
     },
 }
