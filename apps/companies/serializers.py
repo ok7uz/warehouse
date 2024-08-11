@@ -1,49 +1,29 @@
 import datetime
-import json
 
+from django.db.models import F
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from apps.accounts.models import CustomUser
 from apps.companies.models import Company
-from apps.companies.utils import get_ozon_sales
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
+from apps.products.models import Product
 
 
 class CompanySerializer(serializers.ModelSerializer):
-    parent = serializers.SerializerMethodField()
-    """
-    Serializer for Company model.
-
-    This serializer serializes Company model fields.
-    """
 
     class Meta:
         model = Company
         fields = '__all__'
 
-    def get_parent(self, obj):
-        if obj.parent is not None:
-            data = CompanySerializer(obj.parent, context={'request': self.context.get('request')}).data
-            return data
-        else:
-            return None
 
 
 class CompanyCreateAndUpdateSerializers(serializers.ModelSerializer):
-    """
-    Serializer for listing companies.
-
-    This serializer serializes Company model fields for listing purposes.
-    """
-    # wilbreries body
     wb_api_key = serializers.CharField(required=False)
 
-    # ozon body
     api_token = serializers.CharField(required=False)
     client_id = serializers.CharField(required=False)
 
-    # yandex market body
     api_key_bearer = serializers.CharField(required=False)
     fby_campaign_id = serializers.CharField(required=False)
     fbs_campaign_id = serializers.CharField(required=False)
@@ -52,42 +32,43 @@ class CompanyCreateAndUpdateSerializers(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = [
-            'uuid', 'name', 'wb_api_key', 'api_token', 'client_id',
+            'id', 'name', 'wb_api_key', 'api_token', 'client_id',
             'api_key_bearer', 'fby_campaign_id', 'fbs_campaign_id',
-            'business_id', 'created_at', 'parent'
+            'business_id', 'created_at'
         ]
 
         extra_kwargs = {
             'name': {'required': True},
         }
 
-        def create(self, validated_data):
-            company = Company.objects.create(**validated_data)
+    def create(self, validated_data):
+        wb_api_key = validated_data.pop('wb_api_key', None)
+        api_token = validated_data.pop('api_token', None)
+        client_id = validated_data.pop('client_id', None)
+        api_key_bearer = validated_data.pop('api_key_bearer', None)
+        fby_campaign_id = validated_data.pop('fby_campaign_id', None)
+        fbs_campaign_id = validated_data.pop('fbs_campaign_id', None)
+        business_id = validated_data.pop('business_id', None)
+        company = Company.objects.create(**validated_data)
+        
+        if wb_api_key:
+            willberries = Wildberries.objects.create(wb_api_key=wb_api_key, company=company)
+        if api_token and client_id:
+            ozon = Ozon.objects.create(api_token=api_token, client_id=client_id, company=company)
+        if api_key_bearer and fby_campaign_id and fbs_campaign_id and business_id:
+            yandex_market = YandexMarket.objects.create(
+                api_key_bearer=api_key_bearer, fby_campaign_id=fby_campaign_id,
+                fbs_campaign_id=fbs_campaign_id, business_id=business_id, company=company
+            )
 
-            if validated_data['parent']:
-                try:
-                    parent = Company.objects.get(uuid=validated_data['parent'])
-                    company.parent = parent
-                    company.save()
-                except ObjectDoesNotExist:
-                    raise serializers.ValidationError("Parent company doesn't exist")
+        user = self.context.get('request')
+        try:
+            user = CustomUser.objects.get(username=user)
+            user.company.add(company)
+        except ObjectDoesNotExist:
+            raise serializers.ValidationError("User doesn't exist")
 
-            if validated_data['wb_api_key']:
-                willberries = Wildberries.objects.create(**validated_data, company=company)
-            elif validated_data['api_token'] and validated_data['client_id']:
-                ozon = Ozon.objects.create(**validated_data, company=company)
-            elif (validated_data['api_key_bearer'] and validated_data['fby_campaign_id'] and
-                  validated_data['fbs_campaign_id'] and validated_data['business_id']):
-                yandex_market = YandexMarket.objects.create(**validated_data, company=company)
-
-            user = self.context.get('request')
-            try:
-                user = CustomUser.objects.get(username=user)
-                user.company.add(company)
-            except ObjectDoesNotExist:
-                raise serializers.ValidationError("User doesn't exist")
-
-            return company
+        return company
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
@@ -132,18 +113,10 @@ class CompaniesSerializers(serializers.ModelSerializer):
     willberries = serializers.SerializerMethodField()
     ozon = serializers.SerializerMethodField()
     yandex_market = serializers.SerializerMethodField()
-    parent = serializers.SerializerMethodField()
 
     class Meta:
         model = Company
-        fields = ["uuid", "parent", "name", "willberries", "ozon", "yandex_market"]
-
-    def get_parent(self, obj):
-        if obj.parent is not None:
-            data = CompanySerializer(obj.parent, context={'request': self.context.get('request')}).data
-            return data
-        else:
-            return None
+        fields = ["id", "name", "willberries", "ozon", "yandex_market"]
 
     def get_willberries(self, obj):
         data_list = Wildberries.obj.wildberries_data_query(obj)
@@ -164,13 +137,46 @@ class CompanySalesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Company
-        fields = ["uuid", "data", 'product_count']
+        fields = ["id", "data", 'product_count']
 
     def get_data(self, obj):
-        ozon = Ozon.objects.filter(company=obj).first()
-        ozon_data = get_ozon_sales(client_id=ozon.client_id, api_token=ozon.api_token)
-        self.product_count = len(ozon_data)
-        return ozon_data
+        page = self.context.get('request').query_params.get('page', None)
+        page_size = self.context.get('request').query_params.get('page_size', None)
+        date_from = self.context.get('request').query_params.get('date_from', None)
+        date_to = self.context.get('request').query_params.get('date_to', None)
+        service = self.context.get('request').query_params.get('service', None)
+        page = int(page) if page else 1
+        page_size = int(page_size) if page_size else 10
+        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
+        products = Product.objects.filter(sales__company=obj, sales__date__gte=date_from, sales__date__lte=date_to).distinct('vendor_code').prefetch_related('sales')
+        products = products[(page - 1) * page_size: page * page_size]
+        results = {}
+        for product in products:
+            sales = product.sales.filter(company=obj, date__gte=date_from, date__lte=date_to)
+            vendor_code = product.vendor_code
+            date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+                  for i in range((date_to - date_from).days + 1)]
+
+            results[vendor_code] = {datee: 0 for datee in date_range}
+            for sale in sales:
+                date = sale.date.strftime("%Y-%m-%d")
+                if service == 'ozon':
+                    results[vendor_code][date] = sale.ozon_quantity
+                elif service == 'yandex':
+                    results[vendor_code][date] = sale.yandex_market_quantity
+                elif service == 'wildberries':
+                    results[vendor_code][date] = sale.wildberries_quantity
+                else:
+                    results[vendor_code][date] = sale.ozon_quantity + sale.wildberries_quantity + sale.yandex_market_quantity
+
+        return results              
 
     def get_product_count(self, obj):
-        return None
+        date_from = self.context.get('request').query_params.get('date_from', None)
+        date_to = self.context.get('request').query_params.get('date_to', None)
+        service = self.context.get('request').query_params.get('service', None)
+        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
+        return Product.objects.filter(sales__company=obj, sales__date__gte=date_from, sales__date__lte=date_to).distinct().count()
+

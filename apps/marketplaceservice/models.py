@@ -1,3 +1,4 @@
+from uuid import uuid4
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -9,7 +10,7 @@ class Wildberries(models.Model):
     """
     Модель Wildberries для хранения информации об API ключах.
     """
-    uuid = models.IntegerField(primary_key=True, editable=False, unique=True, verbose_name='Уникальный идентификатор')
+    uuid = models.UUIDField(primary_key=True, editable=False, default=uuid4, verbose_name='Уникальный идентификатор')
     wb_api_key = models.CharField(_("API ключ Wildberries"), max_length=1000, null=True, blank=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True,
                                 related_name="wildberries", verbose_name="Компания")
@@ -32,7 +33,7 @@ class Ozon(models.Model):
     """
     Модель Ozon для хранения информации об API ключах.
     """
-    uuid = models.IntegerField(primary_key=True, editable=False, unique=True, verbose_name='Уникальный идентификатор')
+    uuid = models.AutoField(primary_key=True, editable=False, unique=True, verbose_name='Уникальный идентификатор')
     api_token = models.CharField(_("API токен Ozon"), max_length=1000, null=True, blank=True)
     client_id = models.CharField(_("Клиентский ID Ozon"), max_length=1000, null=True, blank=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True,

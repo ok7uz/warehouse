@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     "drf_yasg",
     "django_filters",
     'import_export',
+    'django_celery_results',
+    'django_celery_beat',
 
     # Custom applications
     "apps.accounts",

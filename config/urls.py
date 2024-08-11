@@ -36,7 +36,7 @@ urlpatterns = [
     # Add other application-specific URL patterns here
     # e.g., path('api/', include('myapp.urls')),
     path('api/account/v1/', include('apps.accounts.urls')),
-    path('api/company/v1/', include('apps.companies.urls')),
+    path('api/v1/', include('apps.companies.urls')),
     path('api/market/place/services/v1/', include('apps.marketplaceservice.urls')),
 
 ]

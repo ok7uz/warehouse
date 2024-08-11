@@ -33,14 +33,14 @@ class CustomUserAdmin(UserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': (
-                'username', 'email', 'phone', 'password1', 'password2', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions', 'company'
+                'username', 'email', 'phone', 'password1', 'password2', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'
             ),
         }),
     )
 
     # Fields that must be unique for each user
     ordering = ('username', 'email')
-    filter_horizontal = ('groups', 'user_permissions', 'company')
+    filter_horizontal = ('groups', 'user_permissions')
 
 
 # Registering the CustomUser model and admin panel

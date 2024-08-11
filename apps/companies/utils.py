@@ -78,7 +78,6 @@ def get_ozon_sales(api_token, client_id, date_from=None, date_to=None):
 
     response_data = {}
     products_info = fetch_product_info(api_token, client_id, list(unique_data.keys()))
-    print(products_info)
     for sku, data in unique_data.items():
         vendor = products_info[sku] if sku in products_info else sku
         response_data[vendor] = data
@@ -89,6 +88,32 @@ def get_ozon_sales(api_token, client_id, date_from=None, date_to=None):
 def get_wildberries_sales(wb_api_key, date_from=None, date_to=None):
     date_from = date_from or (datetime.now() - timedelta(days=6)).strftime('%Y-%m-%d')
     date_to = date_to or datetime.now().strftime('%Y-%m-%d')
+    date_range = [(datetime.strptime(date_from, '%Y-%m-%d') + timedelta(days=i)).strftime('%Y-%m-%d')
+                  for i in range((datetime.strptime(date_to, '%Y-%m-%d') - datetime.strptime(date_from, '%Y-%m-%d')).days + 1)]
+
+
+    url = f'https://statistics-api.wildberries.ru/api/v1/supplier/sales?dateFrom={date_from}T00:00:00'
+    headers = {
+        'Authorization': f'Bearer {wb_api_key}'
+    }
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    response_data = {}
+    for item in data:
+        date = item['date'][:10]
+        if date in date_range:
+            vendor = item['supplierArticle']
+            if vendor in response_data:
+                response_data[vendor][date] += 1
+            else:
+                response_data[vendor] = {}
+                for d in date_range:
+                    response_data[vendor][d] = 0
+                response_data[vendor][date] += 1
+    return dict(sorted(response_data.items()))
+    
+    
+    
 
 
 def get_yandex_market_sales(api_key_bearer, fby_campaign_id, fbs_campaign_id, business_id, date_from=None, date_to=None):

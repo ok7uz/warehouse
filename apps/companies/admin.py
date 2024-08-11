@@ -8,16 +8,16 @@ class CompanyAdmin(admin.ModelAdmin):
     """
 
     # Поля, которые будут отображаться в списке компаний в админке
-    list_display = ('uuid', 'name', 'parent', 'created_at', 'updated_at')
+    list_display = ('id', 'name', 'created_at')
 
     # Поля, по которым можно фильтровать список компаний
-    list_filter = ('created_at', 'updated_at')
+    list_filter = ('created_at',)
 
     # Поля, которые будут использоваться для поиска компаний
-    search_fields = ('name', 'parent__name')
+    search_fields = ('name',)
 
     # Поля, которые должны быть уникальны для каждой компании
-    ordering = ('uuid', 'name')
+    ordering = ('id', 'name')
 
 
 # Регистрация модели компании и админской панели

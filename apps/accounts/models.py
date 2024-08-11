@@ -1,11 +1,10 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 import uuid
 
 from apps.accounts.managers.manager import CustomUserManager, CustomUsersManager
-from apps.companies.models import Company
 
 
 class CustomUser(AbstractUser):
@@ -53,14 +52,6 @@ class CustomUser(AbstractUser):
         upload_to="avatars/",
         null=True,
         blank=True
-    )
-
-    # Many-to-many relationship with Company model
-    company = models.ManyToManyField(
-        Company,
-        verbose_name=_('Company'),
-        blank=True,
-        related_name='users'  # Changed related_name to 'users'
     )
 
     # Field to denote if the user is active

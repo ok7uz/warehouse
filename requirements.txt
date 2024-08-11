@@ -1,7 +1,10 @@
+aiohttp==3.10.3 
 asgiref==3.8.1
 attrs==23.2.0
+celery==5.4.0
 diff-match-patch==20230430
 Django==5.0.7
+django-celery-results==2.5.1
 django-cors-headers==4.4.0
 django-filter==24.2
 django-import-export==4.1.1
@@ -14,10 +17,12 @@ jsonschema==4.23.0
 jsonschema-specifications==2023.12.1
 packaging==24.1
 pillow==10.4.0
+psycopg2-binary==2.9.9
 PyJWT==2.8.0
 pytz==2024.1
 PyYAML==6.0.1
 referencing==0.35.1
+requests==2.32.3
 rpds-py==0.19.0
 setuptools==70.3.0
 sqlparse==0.5.0
