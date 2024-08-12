@@ -1,16 +1,20 @@
 from json import dumps
+from time import sleep
+
 import requests
 from datetime import datetime, timedelta
 from celery import shared_task
 
 from apps.company.models import Company
-from apps.marketplaceservice.models import Ozon, Wildberries
+from apps.marketplaceservice.models import Ozon, Wildberries, YandexMarket
 from apps.product.models import Product, ProductSale
 
 date_from = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
 wildberries_sales_url = f'https://statistics-api.wildberries.ru/api/v1/supplier/sales?dateFrom={date_from}T00:00:00'
 ozon_sales_url = 'https://api-seller.ozon.ru/v1/analytics/data'
 ozon_product_info_url = 'https://api-seller.ozon.ru/v2/product/info'
+yandex_market_sales_url = 'https://api.partner.market.yandex.ru/reports/shows-sales/generate?format=CSV'
+yandex_report_url = 'https://api.partner.market.yandex.ru/reports/info/{report_id}'
 
 
 @shared_task
@@ -41,6 +45,7 @@ def update_wildberries_sales():
                 product_sale, _ = ProductSale.objects.get_or_create(product=product, company=wildberries.company, date=date)
                 product_sale.wildberries_quantity = quantity
                 product_sale.save()    
+
 
 def get_product_vendor_code(sku, api_token, client_id):
     headers = {
@@ -117,3 +122,30 @@ def update_ozon_sales():
                 product_sale, _ = ProductSale.objects.get_or_create(product=product, company=ozon.company, date=date)
                 product_sale.ozon_quantity = quantity
                 product_sale.save() 
+
+
+@shared_task
+def update_yandex_market_sales():
+    for yandex_market in YandexMarket.objects.all():
+        api_key_bearer = yandex_market.api_key_bearer
+        fby_campaign_id = yandex_market.fby_campaign_id
+        fbs_campaign_id = yandex_market.fbs_campaign_id
+        business_id = yandex_market.business_id
+        date_to = datetime.now().strftime('%Y-%m-%d')
+        headers = {'Authorization': f'Bearer {api_key_bearer}'}
+        payload = dumps({
+            'dateFrom': date_from,
+            'dateTo': date_to,
+            'grouping': 'OFFERS',
+            'businessId': business_id,
+        })
+        report_response = requests.post(yandex_market_sales_url, data=payload, headers=headers)
+        print(report_response.json())
+        report_id = report_response.json()['result']['reportId']
+        reponse = requests.get(yandex_report_url.format(report_id=report_id), headers=headers)
+        print(reponse.json())
+        while reponse.json()['result']['status'] == 'PROCESSING':
+            sleep(5)
+            reponse = requests.get(yandex_report_url.format(report_id=report_id), headers=headers)
+            print(reponse.json())
+        data = {}

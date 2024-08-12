@@ -61,9 +61,9 @@ class CompanyCreateAndUpdateSerializers(serializers.ModelSerializer):
                 fbs_campaign_id=fbs_campaign_id, business_id=business_id, company=company
             )
 
-        user = self.context.get('request')
+        user = self.context.get('request').user
         try:
-            user = CustomUser.objects.get(username=user)
+            user = CustomUser.objects.get(id=user.id)
             user.company.add(company)
         except ObjectDoesNotExist:
             raise serializers.ValidationError("User doesn't exist")
@@ -79,8 +79,8 @@ class CompanyCreateAndUpdateSerializers(serializers.ModelSerializer):
             print("'bor'")
             self.ozon_change(validated_data['api_token'], validated_data['client_id'], instance)
 
-        if (validated_data.get('api_key_bearer', None) and validated_data.get('fby_campaign_id') and
-                validated_data.get('fbs_campaign_id') and validated_data.get('business_id')):
+        if (validated_data.get('api_key_bearer', None) and validated_data.get('fby_campaign_id', None) and
+                validated_data.get('fbs_campaign_id', None) and validated_data.get('business_id', None)):
             self.yandex_market_change(validated_data['api_key_bearer'], validated_data['fby_campaign_id'],
                     validated_data['fbs_campaign_id'], validated_data['business_id'], instance)
         instance.updated_at = datetime.datetime.now()

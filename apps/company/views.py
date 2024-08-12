@@ -50,7 +50,7 @@ class CompanyDetailView(APIView):
     @extend_schema(
         description="Get all company",
         tags=['Company'],
-        responses={200: CompaniesSerializers(many=True)}
+        responses={200: CompaniesSerializers}
     )
     def get(self, request, *args, **kwargs):
         company = get_object_or_404(Company, id=kwargs.get('uuid'))

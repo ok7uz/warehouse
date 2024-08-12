@@ -36,7 +36,7 @@ class YandexMarketAdmin(admin.ModelAdmin):
     """
     Административная панель для управления моделью YandexMarket.
     """
-    list_display = ('uuid', 'api_key_bearer', 'fby_campaign_id', 'fbs_campaign_id', 'business_id', 'company',
+    list_display = ('id', 'api_key_bearer', 'fby_campaign_id', 'fbs_campaign_id', 'business_id', 'company',
                     'created_at', 'updated_at')
     list_filter = ('company', 'created_at', 'updated_at')
     search_fields = ('api_key_bearer', 'fby_campaign_id', 'fbs_campaign_id', 'business_id', 'company__name')

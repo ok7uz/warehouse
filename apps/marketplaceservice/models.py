@@ -57,7 +57,7 @@ class YandexMarket(models.Model):
     """
     Модель YandexMarket для хранения информации об API ключах.
     """
-    uuid = models.IntegerField(primary_key=True, editable=False, unique=True, verbose_name='Уникальный идентификатор')
+    id = models.AutoField(primary_key=True, editable=False, unique=True, verbose_name='Уникальный идентификатор')
     api_key_bearer = models.CharField(_("API ключ Bearer YandexMarket"), max_length=1000, null=True, blank=True)
     fby_campaign_id = models.CharField(_("FBS Кампания ID YandexMarket"), max_length=1000, null=True, blank=True)
     fbs_campaign_id = models.CharField(_("FBY Кампания ID YandexMarket"), max_length=1000, null=True, blank=True)

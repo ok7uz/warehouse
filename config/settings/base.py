@@ -158,4 +158,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.product.tasks.update_ozon_sales',
         'schedule': crontab(minute=30),
     },
+    'update-yandex-market-sales': {
+        'task': 'apps.product.tasks.update_yandex_market_sales',
+        'schedule': crontab(minute='*'),
+    },
 }
