@@ -13,12 +13,5 @@ urlpatterns = [
     # URL pattern for retrieving user profile
     path('profile', UserProfilesView.as_view(), name='user-profile'),
 
-    # URL pattern for user logout
-    path('logout', UserLogoutView.as_view(), name='user-logout'),
-
-    # URL pattern for listing groups
-    path('gorups', GroupsListViews.as_view(), name='group-list'),
-
-    # URL pattern for user details
     path('detail', UserDetailsView.as_view(), name='user-detail'),
 ]

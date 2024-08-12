@@ -5,9 +5,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from apps.accounts.models import CustomUser
-from apps.companies.models import Company
+from apps.company.models import Company
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
-from apps.products.models import Product
+from apps.product.models import Product
 
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -106,7 +106,7 @@ class CompanyCreateAndUpdateSerializers(serializers.ModelSerializer):
 
 class CompaniesSerializers(serializers.ModelSerializer):
     """
-    Serializer for listing companies.
+    Serializer for listing company.
 
     This serializer serializes Company model fields for listing purposes.
     """

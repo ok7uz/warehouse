@@ -7,8 +7,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('companies', '0001_initial'),
-        ('products', '0001_initial'),
+        ('company', '0001_initial'),
+        ('product', '0001_initial'),
     ]
 
     operations = [
@@ -106,7 +106,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterModelTable(
             name='product',
-            table='products',
+            table='product',
         ),
         migrations.CreateModel(
             name='ProductSale',
@@ -116,8 +116,8 @@ class Migration(migrations.Migration):
                 ('ozon_quantity', models.IntegerField(default=0)),
                 ('wildberries_quantity', models.IntegerField(default=0)),
                 ('yandex_market_quantity', models.IntegerField(default=0)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='companies.company')),
-                ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='products.product')),
+                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='company.company')),
+                ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='product.product')),
             ],
             options={
                 'verbose_name': 'Product sale',

@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('companies', '0001_initial'),
+        ('company', '0001_initial'),
     ]
 
     operations = [
@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 ('client_id', models.CharField(blank=True, max_length=1000, null=True, verbose_name='Клиентский ID Ozon')),
                 ('created_at', models.DateField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateField(blank=True, null=True, verbose_name='Дата обновления')),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='ozon', to='companies.company', verbose_name='Компания')),
+                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='ozon', to='company.company', verbose_name='Компания')),
             ],
             options={
                 'verbose_name': 'Ozon',
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                 ('wb_api_key', models.CharField(blank=True, max_length=1000, null=True, verbose_name='API ключ Wildberries')),
                 ('created_at', models.DateField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateField(blank=True, null=True, verbose_name='Дата обновления')),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='wildberries', to='companies.company', verbose_name='Компания')),
+                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='wildberries', to='company.company', verbose_name='Компания')),
             ],
             options={
                 'verbose_name': 'Wildberries',
@@ -55,7 +55,7 @@ class Migration(migrations.Migration):
                 ('business_id', models.CharField(blank=True, max_length=1000, null=True, verbose_name='Бизнес ID YandexMarket')),
                 ('created_at', models.DateField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateField(blank=True, null=True, verbose_name='Дата обновления')),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='YandexMarketCompany', to='companies.company', verbose_name='Компания')),
+                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='YandexMarketCompany', to='company.company', verbose_name='Компания')),
             ],
             options={
                 'verbose_name': 'YandexMarket',

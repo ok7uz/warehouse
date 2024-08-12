@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('companies', '0001_initial'),
+        ('company', '0001_initial'),
         ('marketplaceservice', '0001_initial'),
     ]
 
@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                 ('yandex_sku', models.CharField(blank=True, max_length=1000, null=True, verbose_name='SKU Яндекс.Маркета')),
                 ('willberries_vendor_code', models.CharField(blank=True, max_length=1000, null=True, verbose_name='Артикул Willberries')),
                 ('willberries_barcode', models.CharField(blank=True, max_length=1000, null=True, verbose_name='Штрих-код Willberries')),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='ProductCompany', to='companies.company', verbose_name='Компания')),
+                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='ProductCompany', to='company.company', verbose_name='Компания')),
             ],
             options={
                 'verbose_name': 'Продукт',
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateField(verbose_name='Дата обновления')),
                 ('ozon', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='OzonProduct', to='marketplaceservice.ozon', verbose_name='Ozon')),
-                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='OzonProduct', to='products.product', verbose_name='Продукт')),
+                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='OzonProduct', to='product.product', verbose_name='Продукт')),
             ],
             options={
                 'verbose_name': 'Продажи на Ozon',
@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
                 ('need_to_produce_quantity', models.IntegerField(blank=True, default=0, null=True, verbose_name='Необходимо произвести')),
                 ('created_at', models.DateField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateField(verbose_name='Дата обновления')),
-                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='InProductionProduct', to='products.product', verbose_name='Продукт')),
+                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='InProductionProduct', to='product.product', verbose_name='Продукт')),
             ],
             options={
                 'verbose_name': 'В производстве',
@@ -78,7 +78,7 @@ class Migration(migrations.Migration):
                 ('remain_quantity', models.IntegerField(blank=True, default=0, null=True, verbose_name='Остаток товаров')),
                 ('created_at', models.DateField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateField(verbose_name='Дата обновления')),
-                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='WildberriesProduct', to='products.product', verbose_name='Продукт')),
+                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='WildberriesProduct', to='product.product', verbose_name='Продукт')),
                 ('wildberries', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='WildberriesProduct', to='marketplaceservice.wildberries', verbose_name='Wildberries')),
             ],
             options={
@@ -95,7 +95,7 @@ class Migration(migrations.Migration):
                 ('remain_quantity', models.IntegerField(blank=True, default=0, null=True, verbose_name='Остаток товаров')),
                 ('created_at', models.DateField(auto_now_add=True, verbose_name='Дата создания')),
                 ('updated_at', models.DateField(verbose_name='Дата обновления')),
-                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='YandexMarketProduct', to='products.product', verbose_name='Продукт')),
+                ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='YandexMarketProduct', to='product.product', verbose_name='Продукт')),
                 ('yandex_market', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='YandexMarketProduct', to='marketplaceservice.yandexmarket', verbose_name='YandexMarket')),
             ],
             options={

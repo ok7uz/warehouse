@@ -1,31 +1,24 @@
 from django.contrib.auth import authenticate
-from django.contrib.auth.models import Group
 from django.shortcuts import get_object_or_404
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from apps.accounts.renderers import UserRenderers
 from apps.accounts.serializers import UserLoginSerializers, UserProfileSerializers, CustomUserSerializer, \
-    GroupSerializer, UserListSerializers
+    UserListSerializers
 from apps.accounts.utils import get_token_for_user
 from apps.accounts.models import CustomUser
 
 
 class CustomUserCreateView(APIView):
-    """
-        View for user login.
-        """
     renderer_classes = [UserRenderers]
     permission_classes = [permissions.IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=CustomUserSerializer,
-        operation_description="Create User",
+    @extend_schema(
+        request=CustomUserSerializer,
+        description="Create User",
         tags=['User Detail'],
         responses={201: CustomUserSerializer(many=False)}
 
@@ -37,8 +30,8 @@ class CustomUserCreateView(APIView):
             return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @swagger_auto_schema(
-        operation_description="Get all users",
+    @extend_schema(
+        description="Get all users",
         tags=['User Detail'],
         responses={200: UserListSerializers(many=True)}
     )
@@ -55,19 +48,14 @@ class UserLoginView(APIView):
     renderer_classes = [UserRenderers]
     permission_classes = [permissions.AllowAny]
 
-    @swagger_auto_schema(
-        request_body=UserLoginSerializers,
-        operation_description="Login",
+    @extend_schema(
+        request=UserLoginSerializers,
+        description="Login",
         tags=['Account'],
         responses={
-            200: openapi.Response('Successful login', schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    'token': openapi.Schema(type=openapi.TYPE_STRING)
-                }
-            )),
-            400: openapi.Response('Bad Request'),
-            404: openapi.Response('Not Found')
+            200: OpenApiResponse(description='Successful login'),
+            400: OpenApiResponse(description='Bad Request'),
+            404: OpenApiResponse(description='Not Found')
         },
 
     )
@@ -99,14 +87,14 @@ class UserProfilesView(APIView):
     renderer_classes = [UserRenderers]
     permission_classes = [permissions.IsAuthenticated]
 
-    @swagger_auto_schema(
+    @extend_schema(
         tags=['Account'],
         responses={
-            200: openapi.Response('Profile retrieved', UserProfileSerializers),
-            403: openapi.Response('Forbidden')
+            200: UserProfileSerializers,
+            403: OpenApiResponse(description='Forbidden')
         }
     )
-    def get(self, request, format=None):
+    def get(self, request):
         """
         Handle GET request to retrieve the user profile.
         """
@@ -117,65 +105,11 @@ class UserProfilesView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class UserLogoutView(APIView):
-    """
-    View for logging out the user.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    @swagger_auto_schema(
-        tags=['Account'],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'refresh_token': openapi.Schema(type=openapi.TYPE_STRING, description='Refresh token to blacklist'),
-                'all': openapi.Schema(type=openapi.TYPE_BOOLEAN,
-                                      description='Blacklist all refresh tokens for the user')
-            }
-        ),
-        responses={
-            200: 'OK, goodbye',
-            403: 'Forbidden'
-        }
-    )
-    def post(self, request, *args, **kwargs):
-        """
-        Handle POST request to log out the user.
-        """
-        if self.request.data.get('all'):
-            # Blacklist all refresh tokens for the user
-            for token in OutstandingToken.objects.filter(user=request.user):
-                _, _ = BlacklistedToken.objects.get_or_create(token=token)
-            return Response({"status": "OK, goodbye, all refresh tokens blacklisted"})
-
-        refresh_token = self.request.data.get('refresh_token')
-        token = RefreshToken(token=refresh_token)
-        token.blacklist()
-        return Response({"status": "OK, goodbye"})
-
-
-class GroupsListViews(APIView):
-    """
-    View for listing groups.
-    """
-    renderer_classes = [UserRenderers]
-
-    @swagger_auto_schema(
-        operation_description="Get all groups",
-        tags=['Rolls'],
-        responses={200: GroupSerializer(many=True)}
-    )
-    def get(self, request, format=None):
-        groups = Group.objects.all()
-        serializer = GroupSerializer(groups, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 class UserDetailsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    @swagger_auto_schema(
-        operation_description="Get user details",
+    @extend_schema(
+        description="Get user details",
         tags=['User Detail'],
         responses={200: UserListSerializers}
     )
@@ -184,8 +118,8 @@ class UserDetailsView(APIView):
         serializer = UserListSerializers(user, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(
-        operation_description="Update user details",
+    @extend_schema(
+        description="Update user details",
         tags=['User Detail'],
         responses={200: CustomUserSerializer}
     )
@@ -197,8 +131,8 @@ class UserDetailsView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @swagger_auto_schema(
-        operation_description="Delete user",
+    @extend_schema(
+        description="Delete user",
         tags=['User Detail'],
         responses={204: 'No content'}
     )

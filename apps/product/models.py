@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.companies.models import Company
+from apps.company.models import Company
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 
 
@@ -11,7 +11,7 @@ class Product(models.Model):
     ozon_sku = models.CharField(max_length=1000, null=True)
 
     class Meta:
-        db_table = "products"
+        db_table = "product"
         verbose_name = "Product"
         verbose_name_plural = "Products"
         ordering = ('vendor_code',)

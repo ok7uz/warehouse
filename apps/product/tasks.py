@@ -3,9 +3,9 @@ import requests
 from datetime import datetime, timedelta
 from celery import shared_task
 
-from apps.companies.models import Company
+from apps.company.models import Company
 from apps.marketplaceservice.models import Ozon, Wildberries
-from apps.products.models import Product, ProductSale
+from apps.product.models import Product, ProductSale
 
 date_from = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
 wildberries_sales_url = f'https://statistics-api.wildberries.ru/api/v1/supplier/sales?dateFrom={date_from}T00:00:00'

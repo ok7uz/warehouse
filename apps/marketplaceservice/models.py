@@ -2,7 +2,7 @@ from uuid import uuid4
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.companies.models import Company
+from apps.company.models import Company
 from apps.marketplaceservice.manager.managers import WillberriesManager, YandexMarketManager, OzonManager
 
 
