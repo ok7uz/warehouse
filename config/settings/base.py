@@ -118,8 +118,8 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Social Media API',
-    'DESCRIPTION': 'Social Media',
+    'TITLE': 'Innotrade API',
+    'DESCRIPTION': 'Innotrade',
     'VERSION': '1.0.0',
     'OAS_VERSION': '3.1.0',
     'COMPONENT_SPLIT_REQUEST': True,
@@ -153,15 +153,19 @@ CACHES = {
 CELERY_BEAT_SCHEDULE = {
     'update-wildberries-sales': {
         'task': 'apps.product.tasks.update_wildberries_sales',
-        'schedule': crontab(minute=30),
+        'schedule': crontab(minute='*/20'),
+    },
+    'update-wildberries-orders': {
+        'task': 'apps.product.tasks.update_wildberries_orders',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update-wildberries-stocks': {
+        'task': 'apps.product.tasks.update_wildberries_stocks',
+        'schedule': crontab(minute='*/20'),
     },
     'update-ozon-sales': {
         'task': 'apps.product.tasks.update_ozon_sales',
-        'schedule': crontab(minute=30),
-    },
-    'update-yandex-market-sales': {
-        'task': 'apps.product.tasks.update_yandex_market_sales',
-        'schedule': crontab(minute='*'),
+        'schedule': crontab(minute='*/20'),
     },
 }
 

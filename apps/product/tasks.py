@@ -7,10 +7,12 @@ from celery import shared_task
 
 from apps.company.models import Company
 from apps.marketplaceservice.models import Ozon, Wildberries, YandexMarket
-from apps.product.models import Product, ProductSale
+from apps.product.models import Product, ProductSale, ProductOrder, ProductStock
 
 date_from = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
 wildberries_sales_url = f'https://statistics-api.wildberries.ru/api/v1/supplier/sales?dateFrom={date_from}T00:00:00'
+wildberries_orders_url = f'https://statistics-api.wildberries.ru/api/v1/supplier/orders?dateFrom={date_from}T00:00:00'
+wildberries_stocks_url = f'https://statistics-api.wildberries.ru/api/v1/supplier/stocks?dateFrom={date_from}T00:00:00'
 ozon_sales_url = 'https://api-seller.ozon.ru/v1/analytics/data'
 ozon_product_info_url = 'https://api-seller.ozon.ru/v2/product/info'
 yandex_market_sales_url = 'https://api.partner.market.yandex.ru/reports/shows-sales/generate?format=CSV'
@@ -45,6 +47,60 @@ def update_wildberries_sales():
                 product_sale, _ = ProductSale.objects.get_or_create(product=product, company=wildberries.company, date=date)
                 product_sale.wildberries_quantity = quantity
                 product_sale.save()    
+
+
+@shared_task
+def update_wildberries_orders():
+    for wildberries in Wildberries.objects.all():
+        wb_api_key = wildberries.wb_api_key
+        response = requests.get(wildberries_orders_url, headers={'Authorization': f'Bearer {wb_api_key}'})
+        data = {}
+
+        for item in response.json():
+            date = item['date'][:10]
+            vendor_code = item['supplierArticle']
+            if vendor_code not in data:
+                data[vendor_code] = {}
+                if date not in data[vendor_code]:
+                    data[vendor_code][date] = 1
+                else:
+                    data[vendor_code][date] += 1
+            else:
+                if date not in data[vendor_code]:
+                    data[vendor_code][date] = 1
+                else:
+                    data[vendor_code][date] += 1
+        for vendor_code, p_data in data.items():
+            product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
+
+            for date, quantity in p_data.items():
+                product_order, _ = ProductOrder.objects.get_or_create(
+                    product=product,
+                    company=wildberries.company,
+                    date=date
+                )
+                product_order.wildberries_quantity = quantity
+                product_order.save()
+
+
+@shared_task
+def update_wildberries_stocks():
+    for wildberries in Wildberries.objects.all():
+        wb_api_key = wildberries.wb_api_key
+        response = requests.get(wildberries_stocks_url, headers={'Authorization': f'Bearer {wb_api_key}'})
+
+        for item in response.json():
+            vendor_code = item['supplierArticle']
+            warehouse = item['warehouseName']
+            quantity = item['quantityFull']
+            product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
+            product_stock, _ = ProductStock.objects.get_or_create(
+                product=product,
+                company=wildberries.company,
+                warehouse=warehouse
+            )
+            product_stock.wildberries_quantity = quantity
+            product_stock.save()
 
 
 def get_product_vendor_code(sku, api_token, client_id):

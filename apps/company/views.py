@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from apps.company.models import Company
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
-    CompanySalesSerializer
+    CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer
 
 COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
@@ -94,4 +94,34 @@ class CompanySalesView(APIView):
     def get(self, request, company_id):
         company = Company.objects.get(id=company_id)
         serializer = CompanySalesSerializer(company, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CompanyOrdersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description='Get all company orders',
+        tags=['Company'],
+        responses={200: CompanyOrdersSerializer(many=True)},
+        parameters=COMPANY_SALES_PARAMETRS
+    )
+    def get(self, request, company_id):
+        company = Company.objects.get(id=company_id)
+        serializer = CompanyOrdersSerializer(company, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CompanyStocksView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description='Get all company stocks',
+        tags=['Company'],
+        responses={200: CompanyStocksSerializer(many=True)},
+        parameters=COMPANY_SALES_PARAMETRS
+    )
+    def get(self, request, company_id):
+        company = Company.objects.get(id=company_id)
+        serializer = CompanyStocksSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
