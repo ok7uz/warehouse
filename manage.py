@@ -4,9 +4,6 @@ import os
 import sys
 from decouple import config
 
-print(config("DB_NAME"))
-sys.exit()
-
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
