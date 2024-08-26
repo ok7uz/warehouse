@@ -21,7 +21,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'django_celery_results',
-    'django_celery_beat',
+    'django_celery_beat'
 ]
 
 INSTALLED_APPS = [
@@ -83,6 +83,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
+
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200000
 
 TIME_ZONE = 'UTC'
 

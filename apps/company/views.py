@@ -1,8 +1,10 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from apps.product.tasks import *
 from rest_framework import status, permissions
 from rest_framework.response import Response
+from rest_framework.request import Request
 from rest_framework.views import APIView
 
 from apps.company.models import Company
@@ -13,7 +15,8 @@ COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
     OpenApiParameter('page_size', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page size"),
     OpenApiParameter('date_from', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date from"),
-    OpenApiParameter('date_to', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date to")
+    OpenApiParameter('date_to', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date to"),
+    OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket']),
 ]
 
 
@@ -91,7 +94,10 @@ class CompanySalesView(APIView):
         responses={200: CompanySalesSerializer(many=True)},
         parameters=COMPANY_SALES_PARAMETRS
     )
-    def get(self, request, company_id):
+    def get(self, request: Request, company_id):
+        update_wildberries_sales.delay()
+        update_ozon_sales.delay()
+        update_yandex_market_sales.delay()
         company = Company.objects.get(id=company_id)
         serializer = CompanySalesSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -107,6 +113,9 @@ class CompanyOrdersView(APIView):
         parameters=COMPANY_SALES_PARAMETRS
     )
     def get(self, request, company_id):
+        
+        # update_wildberries_orders.delay()
+        update_ozon_orders.delay()
         company = Company.objects.get(id=company_id)
         serializer = CompanyOrdersSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)

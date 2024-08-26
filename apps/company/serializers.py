@@ -1,13 +1,13 @@
 import datetime
 
-from django.db.models import F
+from django.db.models import Count
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from apps.accounts.models import CustomUser
 from apps.company.models import Company
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
-from apps.product.models import Product, ProductStock
+from apps.product.models import Product, ProductStock, ProductSale, ProductOrder
 
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -151,40 +151,64 @@ class CompanySalesSerializer(serializers.ModelSerializer):
         service = self.context.get('request').query_params.get('service', None)
         page = int(page) if page else 1
         page_size = int(page_size) if page_size else 10
-        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
+        date_from = datetime.datetime.strptime(date_from,
+                                               '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(
+            days=6)
+
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
-        products = Product.objects.filter(sales__company=obj, sales__date__gte=date_from, sales__date__lte=date_to).distinct('vendor_code').prefetch_related('sales')
+
+        if service == 'ozon':
+            products = ProductSale.objects.filter(company=obj, marketplace_type="ozon").order_by("product_id").distinct('product_id')
+        elif service == 'yandex':
+            products = ProductSale.objects.filter(company=obj, marketplace_type="yandex").order_by("product_id").distinct('product_id')
+        elif service == 'wildberries':
+            products = ProductSale.objects.filter(company=obj, marketplace_type="wildberries").order_by("product_id").distinct('product_id')
+        else:
+            products = ProductSale.objects.filter(company=obj).order_by("product_id").distinct('product_id')
+       
         products = products[(page - 1) * page_size: page * page_size]
         results = {}
+        
         for product in products:
-            sales = product.sales.filter(company=obj, date__gte=date_from, date__lte=date_to)
-            vendor_code = product.vendor_code
+            
+            p_order = product.product
+            order = product
+            vendor_code = product.product.vendor_code
             date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d')
-                  for i in range((date_to - date_from).days + 1)]
-
-            results[vendor_code] = {datee: 0 for datee in date_range}
-            for sale in sales:
-                date = sale.date.strftime("%Y-%m-%d")
-                if service == 'ozon':
-                    results[vendor_code][date] = sale.ozon_quantity
-                elif service == 'yandex':
-                    results[vendor_code][date] = sale.yandex_market_quantity
-                elif service == 'wildberries':
-                    results[vendor_code][date] = sale.wildberries_quantity
-                else:
-                    results[vendor_code][date] = sale.ozon_quantity + sale.wildberries_quantity + sale.yandex_market_quantity
-
+                          for i in range((date_to - date_from).days + 1)]
+            if vendor_code not in results.keys():
+                results[vendor_code] = {datee: 0 for datee in date_range}
+            
+            date = order.date.strftime("%Y-%m-%d")
+            if service == 'ozon':
+                results[vendor_code][date] = ProductSale.objects.filter(date__date=date, company=obj, marketplace_type="ozon", product=p_order).count()
+            elif service == 'yandex':
+                results[vendor_code][date] = ProductSale.objects.filter(date__date=date, company=obj, marketplace_type="yandex", product=p_order).count()
+            elif service == 'wildberries':
+                results[vendor_code][date] = ProductSale.objects.filter(date__date=date, company=obj, marketplace_type="wildberries", product=p_order).count()
+            else:
+                results[vendor_code][date] = ProductSale.objects.filter(date__date=date, company=obj, product=p_order).count()
         return results
 
     def get_product_count(self, obj):
         date_from = self.context.get('request').query_params.get('date_from', None)
         date_to = self.context.get('request').query_params.get('date_to', None)
+        service = self.context.get('request').query_params.get('service', None)
         date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
-        return Product.objects.filter(sales__company=obj, sales__date__gte=date_from, sales__date__lte=date_to).distinct().count()
+
+        if service == 'ozon':
+            count = ProductSale.objects.filter(company=obj, marketplace_type="ozon",date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        elif service == 'yandex':
+            count = ProductSale.objects.filter(company=obj, marketplace_type="yandex",date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        elif service == 'wildberries':
+            count = ProductSale.objects.filter(company=obj, marketplace_type="wildberries",date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        else:
+            count = ProductSale.objects.filter(company=obj,date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        return count
 
 
-class CompanyOrdersSerializer(serializers.Serializer):
+class CompanyOrdersSerializer(serializers.ModelSerializer):
     data = serializers.SerializerMethodField(read_only=True)
     product_count = serializers.SerializerMethodField(read_only=True)
 
@@ -203,40 +227,58 @@ class CompanyOrdersSerializer(serializers.Serializer):
         date_from = datetime.datetime.strptime(date_from,
                                                '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(
             days=6)
+
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
-        products = Product.objects.filter(orders__company=obj, orders__date__gte=date_from,
-                                          orders__date__lte=date_to).distinct('vendor_code').prefetch_related('orders')
+
+        if service == 'ozon':
+            products = ProductOrder.objects.filter(company=obj, marketplace_type="ozon").order_by("product_id").distinct('product_id')
+        elif service == 'yandex':
+            products = ProductOrder.objects.filter(company=obj, marketplace_type="yandex").order_by("product_id").distinct('product_id')
+        elif service == 'wildberries':
+            products = ProductOrder.objects.filter(company=obj, marketplace_type="wildberries").order_by("product_id").distinct('product_id')
+        else:
+            products = ProductOrder.objects.filter(company=obj).order_by("product_id").distinct('product_id')
+       
         products = products[(page - 1) * page_size: page * page_size]
         results = {}
+        
         for product in products:
-            orders = product.orders.filter(company=obj, date__gte=date_from, date__lte=date_to)
-            vendor_code = product.vendor_code
+            
+            p_order = product.product
+            order = product
+            vendor_code = product.product.vendor_code
             date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d')
                           for i in range((date_to - date_from).days + 1)]
-
-            results[vendor_code] = {datee: 0 for datee in date_range}
-            for order in orders:
-                date = order.date.strftime("%Y-%m-%d")
-                if service == 'ozon':
-                    results[vendor_code][date] = order.ozon_quantity
-                elif service == 'yandex':
-                    results[vendor_code][date] = order.yandex_market_quantity
-                elif service == 'wildberries':
-                    results[vendor_code][date] = order.wildberries_quantity
-                else:
-                    results[vendor_code][date] = order.ozon_quantity + order.wildberries_quantity + order.yandex_market_quantity
-
+            if vendor_code not in results.keys():
+                results[vendor_code] = {datee: 0 for datee in date_range}
+            
+            date = order.date.strftime("%Y-%m-%d")
+            if service == 'ozon':
+                results[vendor_code][date] = ProductOrder.objects.filter(date__date=date, company=obj, marketplace_type="ozon", product=p_order).count()
+            elif service == 'yandex':
+                results[vendor_code][date] = ProductOrder.objects.filter(date__date=date, company=obj, marketplace_type="yandex", product=p_order).count()
+            elif service == 'wildberries':
+                results[vendor_code][date] = ProductOrder.objects.filter(date__date=date, company=obj, marketplace_type="wildberries", product=p_order).count()
+            else:
+                results[vendor_code][date] = ProductOrder.objects.filter(date__date=date, company=obj, product=p_order).count()
         return results
 
     def get_product_count(self, obj):
         date_from = self.context.get('request').query_params.get('date_from', None)
         date_to = self.context.get('request').query_params.get('date_to', None)
-        date_from = datetime.datetime.strptime(date_from,
-                                               '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(
-            days=6)
+        service = self.context.get('request').query_params.get('service', None)
+        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
-        return Product.objects.filter(orders__company=obj, orders__date__gte=date_from,
-                                      orders__date__lte=date_to).distinct().count()
+
+        if service == 'ozon':
+            count = ProductOrder.objects.filter(company=obj, marketplace_type="ozon",date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        elif service == 'yandex':
+            count = ProductOrder.objects.filter(company=obj, marketplace_type="yandex",date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        elif service == 'wildberries':
+            count = ProductOrder.objects.filter(company=obj, marketplace_type="wildberries",date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        else:
+            count = ProductOrder.objects.filter(company=obj,date__gte=date_from, date__lte=date_to).order_by("product_id").distinct('product_id').count()
+        return count
 
 
 class CompanyStocksSerializer(serializers.Serializer):
@@ -255,27 +297,35 @@ class CompanyStocksSerializer(serializers.Serializer):
         service = self.context.get('request').query_params.get('service', None)
         page = int(page) if page else 1
         page_size = int(page_size) if page_size else 10
-        products = Product.objects.filter(stocks__company=obj).distinct('vendor_code').prefetch_related('stocks')
+        date_from = datetime.datetime.strptime(date_from,
+                                               '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(
+            days=6)
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
+        products = ProductStock.objects.filter(company=obj).distinct()
         products = products[(page - 1) * page_size: page * page_size]
         results = {}
         warehouses = ProductStock.objects.filter(company=obj).order_by('warehouse').values_list('warehouse', flat=True).distinct()
+        results = {}
         for product in products:
-            stocks = product.stocks.filter(company=obj)
-            vendor_code = product.vendor_code
+            
+            order = product
+            vendor_code = product.product.vendor_code
+            warehouses = [warehouse for warehouse in warehouses]
+            if vendor_code not in results.keys():
+                results[vendor_code] = {warehouse: 0 for warehouse in warehouses}
+            
+            date = order.warehouse
+            if service == 'ozon':
+                results[vendor_code][date] += order.ozon_quantity
+            elif service == 'yandex':
+                results[vendor_code][date] += order.yandex_market_quantity
+            elif service == 'wildberries':
+                results[vendor_code][date] += order.wildberries_quantity
+            else:
+                results[vendor_code][date] += order.ozon_quantity + order.wildberries_quantity + order.yandex_market_quantity
 
-            results[vendor_code] = {wh: 0 for wh in warehouses}
-            for stock in stocks:
-                warehouse = stock.warehouse
-                match service:
-                    case 'ozon':
-                        results[vendor_code][warehouse] = stock.ozon_quantity
-                    case 'yandex':
-                        results[vendor_code][warehouse] = stock.yandex_market_quantity
-                    case 'wildberries':
-                        results[vendor_code][warehouse] = stock.wildberries_quantity
-                    case _:
-                        results[vendor_code][warehouse] = stock.ozon_quantity + stock.wildberries_quantity + stock.yandex_market_quantity
         return results
 
     def get_product_count(self, obj):
         return Product.objects.filter(stocks__company=obj).distinct().count()
+
