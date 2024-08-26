@@ -371,5 +371,65 @@ def update_yandex_market_sales():
                     date = date + timedelta(seconds=1)
     return "succes"
                     
+@app.task
+def update_yandex_market_orders():
+    
+    for yandex_market in YandexMarket.objects.all():
+        api_key_bearer = yandex_market.api_key_bearer
+        fby_campaign_id = yandex_market.fby_campaign_id
+        fbs_campaign_id = yandex_market.fbs_campaign_id
+        company = yandex_market.company
+        date_from = ProductOrder.objects.filter(marketplace_type="yandexmarket")
+
+        if not (date_from or date_from.exists()):
+            date_from = (datetime.now()-timedelta(days=365)).strftime("%d-%m-%Y")
+        else:
+            date_from =date_from.latest("date").date.strftime("%d-%m-%Y")
+
+        results1 = get_yandex_orders(api_key_bearer, date_from,client_id=fby_campaign_id,status="PROCESSING")
+        results2 = get_yandex_orders(api_key_bearer, date_from,client_id=fbs_campaign_id,status="PROCESSING")
+
+        results = results1 + results2
+
+        for item in results:
+            buyer_total = item.get("buyerTotal",0)
+            item_total = item.get("itemsTotal",0)
+
+            if buyer_total == item_total:
+                if "serviceName" in item["delivery"].keys():
+                    warehouse_name = item["delivery"]['serviceName']
+            
+                warehouse_name = ""
+                oblast_okrug_name = item["delivery"]['region']['parent']['name']
+                region_name = item["delivery"]['region']['name']
+                try:
+                    country_name = item.get('delivery', {}).get('address', {}).get('country', "")
+                except:
+                    country_name = "Russia"
+
+                warehouse, created_w = Warehouse.objects.get_or_create(
+                    name = warehouse_name,
+                    country_name = country_name,
+                    oblast_okrug_name = oblast_okrug_name,
+                    region_name = region_name
+                )
+                
+                products = item["items"]
+                date = datetime.strptime(item['updatedAt'],"%d-%m-%Y %H:%M:%S")
+                
+                for product in products:
+                    vendor_code = product["offerId"]
+                    product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
+                    product_s = ProductOrder.objects.get_or_create(
+                        product=product_obj,
+                        company=company,
+                        date=date,
+                        warehouse=warehouse,
+                        marketplace_type="yandexmarket"
+                    )
+
+                    date = date + timedelta(seconds=1)
+    return "succes"
+                    
                 
                     
