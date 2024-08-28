@@ -30,10 +30,20 @@ class CompanyListView(APIView):
         responses={201: CompanyCreateAndUpdateSerializers()}
     )
     def post(self, request, *args, **kwargs):
-        print('here views')
         serializer = CompanyCreateAndUpdateSerializers(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save(owner=request.user)
+        update_wildberries_sales.delay()
+        update_ozon_sales.delay()
+        update_yandex_market_sales.delay()
+        update_wildberries_orders.delay()
+        update_ozon_orders.delay()
+        update_yandex_market_orders.delay()
+        update_wildberries_stocks.delay()
+        update_ozon_stocks.delay()
+        update_yandex_stocks.delay()
+
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
@@ -133,8 +143,8 @@ class CompanyStocksView(APIView):
         parameters=COMPANY_SALES_PARAMETRS
     )
     def get(self, request, company_id):
-        # update_wildberries_stocks.delay()
-        # update_ozon_stocks.delay()
+        update_wildberries_stocks.delay()
+        update_ozon_stocks.delay()
         update_yandex_stocks.delay()
         company = Company.objects.get(id=company_id)
         serializer = CompanyStocksSerializer(company, context={'request': request})
