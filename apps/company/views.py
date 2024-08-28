@@ -117,6 +117,7 @@ class CompanyOrdersView(APIView):
         update_wildberries_orders.delay()
         update_ozon_orders.delay()
         update_yandex_market_orders.delay()
+        
         company = Company.objects.get(id=company_id)
         serializer = CompanyOrdersSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -132,6 +133,9 @@ class CompanyStocksView(APIView):
         parameters=COMPANY_SALES_PARAMETRS
     )
     def get(self, request, company_id):
+        # update_wildberries_stocks.delay()
+        # update_ozon_stocks.delay()
+        update_yandex_stocks.delay()
         company = Company.objects.get(id=company_id)
         serializer = CompanyStocksSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)

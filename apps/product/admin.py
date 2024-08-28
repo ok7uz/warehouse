@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse
+from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock
 from django.db.models import Count
 
 @admin.register(Product)
@@ -22,6 +22,7 @@ class ProductSaleAdmin(admin.ModelAdmin):
 @admin.register(ProductOrder)
 class ProductSaleAdmin(admin.ModelAdmin):
     list_display = ('vendor_code', 'stock')
+    list_filter = ["marketplace_type"]
 
     def vendor_code(self, productsale_obj):
         return productsale_obj.product.vendor_code
@@ -34,6 +35,7 @@ class ProductSaleAdmin(admin.ModelAdmin):
 class ProductSaleAdmin(admin.ModelAdmin):
     list_display = ('vendor_code', 'stock')
     search_fields = ['vendor_code']
+    list_filter = ["marketplace_type"]
 
     def vendor_code(self, productsale_obj):
         return productsale_obj.product.vendor_code
@@ -42,7 +44,14 @@ class ProductSaleAdmin(admin.ModelAdmin):
         date = productsale_obj.date
         return ProductSale.objects.filter(date__date=date).values('product').annotate(sales_count=Count('id')).count()
     
-admin.site.register(Warehouse)
+@admin.register(Warehouse)
+class WareHouseAdminView(admin.ModelAdmin):
+    search_fields=["name","oblast_okrug_name"]
+    
+@admin.register(WarehouseForStock)
+class WareHouseForStockAdminView(admin.ModelAdmin):
+    search_fields=["name"]
+    list_filter = ["marketplace_type"]
     
 
 

@@ -22,6 +22,22 @@ class Warehouse(models.Model):
         ordering = ["name"]
         unique_together = ("name","country_name", "oblast_okrug_name", "region_name", "shelf")
 
+    def __str__(self) -> str:
+        return self.name
+    
+class WarehouseForStock(models.Model):
+    
+    name = models.CharField(max_length=50)
+
+    MARKETPLACE_CHOICES = [
+    ('wildberries', 'Wildberries'),
+    ('ozon', 'Ozon'),
+    ('yandexmarket', 'YandexMarket'),
+    ]
+    
+    marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
+
+
 class Product(models.Model):
     id = models.AutoField(primary_key=True, editable=False, unique=True)
     vendor_code = models.CharField(max_length=1000)
@@ -82,18 +98,29 @@ class ProductOrder(models.Model):
         unique_together = ('product', 'company', 'date')
 
 class ProductStock(models.Model):
+    
     id = models.AutoField(primary_key=True, editable=False, unique=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stocks')
+    date = models.DateField()
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='product_stocks')
-    warehouse = models.ForeignKey(Warehouse,on_delete=models.CASCADE)
-    ozon_quantity = models.IntegerField(default=0)
-    wildberries_quantity = models.IntegerField(default=0)
-    yandex_market_quantity = models.IntegerField(default=0)
+    warehouse = models.ForeignKey(WarehouseForStock,on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=0)
+    
+    MARKETPLACE_CHOICES = [
+    ('wildberries', 'Wildberries'),
+    ('ozon', 'Ozon'),
+    ('yandexmarket', 'YandexMarket'),
+    ]
+    
+    marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
 
     class Meta:
+
         db_table = "product_stocks"
         verbose_name = "Product stock"
         verbose_name_plural = "Product stocks"
         ordering = ('product__vendor_code',)
         unique_together = ('product', 'company', 'warehouse')
+
+
 
