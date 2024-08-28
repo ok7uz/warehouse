@@ -169,6 +169,26 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.product.tasks.update_ozon_sales',
         'schedule': crontab(minute='*/20'),
     },
+    'update-ozon-orders': {
+        'task': 'apps.product.tasks.update_ozon_orders',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update-ozon-stocks': {
+        'task': 'apps.product.tasks.update_ozon_stocks',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update_yandex_market_sales': {
+        'task': 'apps.product.tasks.update_yandex_market_sales',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update_yandex_market_orders': {
+        'task': 'apps.product.tasks.update_yandex_market_orders',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update_yandex_market_stocks': {
+        'task': 'apps.product.tasks.update_yandex_market_stocks',
+        'schedule': crontab(minute='*/20'),
+    },
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
