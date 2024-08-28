@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 LOCAL_APPS = [
-    'apps.accounts.apps.AccountsConfig',
+    
     'apps.company.apps.CompanyConfig',
     'apps.marketplaceservice.apps.MarketplaceserviceConfig',
     'apps.product.apps.ProductConfig',
@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'apps.accounts.apps.AccountsConfig',
     *LOCAL_APPS,
     *THIRD_PARTY_APPS,
 ]
