@@ -298,10 +298,9 @@ class CompanyStocksSerializer(serializers.Serializer):
         page = int(page) if page else 1
         page_size = int(page_size) if page_size else 10
         date_from = datetime.datetime.strptime(date_from,
-                                               '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(
-            days=6)
+                                               '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
 
-        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today() + datetime.timedelta(days=1)
 
         if service == 'ozon':
             products = ProductStock.objects.filter(company=obj, marketplace_type="ozon",date__gte=date_from,date__lte=date_to).order_by("product_id").distinct('product_id')
@@ -324,8 +323,13 @@ class CompanyStocksSerializer(serializers.Serializer):
                           for i in range((date_to - date_from).days + 1)]
             date = order.date.strftime("%Y-%m-%d")
             if vendor_code not in results.keys():
-                quentity = product.quantity
-                results[vendor_code] = {datee: quentity for datee in date_range}
+                for datee in date_range:
+                    quantity = ProductStock.objects.filter(product=p_order,date__lte=datee).order_by("date")
+                    if quantity:
+                        quantity = quantity.latest("date").quantity
+                    else:
+                        quantity = 0
+                    results[vendor_code] = {datee: quantity }
             
             
             if service == 'ozon':

@@ -554,37 +554,40 @@ def update_yandex_stocks():
         results = result1 + result2
        
         for item in results:
-            
-            vendor_code = item['offers'][0]["offerId"]
             warehouse = get_warehouse_name(business_id,headers,item['warehouseId'])
-            count = 0
-            for stock in item['offers'][0]["stocks"]:
-                if stock["type"] == "AVAILABLE":
-                    count += stock["count"]
-            
-            quantity = count
-            
-            date = datetime.strptime(item['offers']['updatedAt'],"%d-%m-%Y %H:%M:%S")
-            
-            product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
-            warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="yandexmarket")
-            try:
-                product_stock, created_s = ProductStock.objects.get_or_create(
-                    product=product,
-                    warehouse=warehouse_obj,
-                    marketplace_type = "yandexmarket",
-                    company=company,
-                    date=date
-                )
-                if created_s:
-                    product_stock.quantity = quantity
-                    product_stock.save()
+            for offers in item['offers']:
+                if "upatedAt" in offers.keys():
+                    date = datetime.strptime(offers['updatedAt'],"%Y-%m-%dT%H:%M:%S.%f%z")
                 else:
-                    product_stock.quantity = quantity
-                    product_stock.save()
-                print(product_stock)
-            except:
-                pass
-            print(product_stock)
+                    date = datetime.now()
+                vendor_code = offers["offerId"]
+                count = 0
+                for stock in offers['stocks']:
+                    if stock and stock["type"] == "AVAILABLE":
+                        count += stock["count"]
+                quantity = count
+                
             
+            
+                product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
+                warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="yandexmarket")
+                try:
+                    product_stock, created_s = ProductStock.objects.get_or_create(
+                        product=product,
+                        warehouse=warehouse_obj,
+                        marketplace_type = "yandexmarket",
+                        company=company,
+                        date=date
+                    )
+                    if created_s:
+                        product_stock.quantity = quantity
+                        product_stock.save()
+                    else:
+                        product_stock.quantity = quantity
+                        product_stock.save()
+                    print(product_stock)
+                except:
+                    pass
+                print(product_stock)
+                
     return "Succes"
