@@ -564,7 +564,7 @@ def update_yandex_stocks():
             
             quantity = count
             
-            date = datetime.now()
+            date = datetime.strptime(item['offers']['updatedAt'],"%d-%m-%Y %H:%M:%S")
             
             product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="yandexmarket")

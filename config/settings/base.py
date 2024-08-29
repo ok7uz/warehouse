@@ -13,6 +13,7 @@ LOCAL_APPS = [
     'apps.company.apps.CompanyConfig',
     'apps.marketplaceservice.apps.MarketplaceserviceConfig',
     'apps.product.apps.ProductConfig',
+    'apps.accounts.apps.AccountsConfig',
 ]
 
 THIRD_PARTY_APPS = [
@@ -31,7 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.accounts.apps.AccountsConfig',
+    
     *LOCAL_APPS,
     *THIRD_PARTY_APPS,
 ]
