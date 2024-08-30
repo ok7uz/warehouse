@@ -48,7 +48,7 @@ def update_wildberries_sales():
                 wildberries = wildberries
                 warehouse = warehouse
                 try:
-                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
+                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
                     date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
                     product_sale, created_sale= ProductSale.objects.get_or_create(
                         product=product,
@@ -93,7 +93,7 @@ def update_wildberries_orders():
                 wildberries = wildberries
                 warehouse = warehouse
                 try:
-                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
+                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
                     date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
                     product_order, created_sale= ProductOrder.objects.get_or_create(
                         product=product,
@@ -124,7 +124,7 @@ def update_wildberries_stocks():
             company = wildberries.company
             date = datetime.strptime(item["lastChangeDate"],"%Y-%m-%dT%H:%M:%S")
             
-            product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
+            product, _ = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="wildberries")
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="wildberries")
             try:
                 product_stock, created_s = ProductStock.objects.get_or_create(
@@ -140,7 +140,7 @@ def update_wildberries_stocks():
                 else:
                     product_stock.quantity = quantity
                     product_stock.save()
-                print(product_stock)
+                
             except:
                 pass
 
@@ -168,7 +168,7 @@ def get_paid_orders(url, headers, date_from, status="delivered"):
     if response.status_code == 200:
         return response.json().get('result', [])
     else:
-        print(f"Error: {response.status_code} - {response.text}")
+        
         return []
     
 @app.task
@@ -208,7 +208,7 @@ def update_ozon_sales():
             oblast_okrug_name = item["analytics_data"]['region']
             region_name = item["analytics_data"]['city']
 
-            product, created_p = Product.objects.get_or_create(vendor_code=sku)
+            product, created_p = Product.objects.get_or_create(vendor_code=sku,marketplace_type="ozon")
             warehouse, created_w = Warehouse.objects.get_or_create(
                 name = warehouse_name,
                 country_name = "Russia",
@@ -263,7 +263,7 @@ def update_ozon_orders():
             oblast_okrug_name = item["analytics_data"]['region']
             region_name = item["analytics_data"]['city']
 
-            product, created_p = Product.objects.get_or_create(vendor_code=sku)
+            product, created_p = Product.objects.get_or_create(vendor_code=sku, marketplace_type="ozon")
             warehouse, created_w = Warehouse.objects.get_or_create(
                 name = warehouse_name,
                 country_name = "Russia",
@@ -300,7 +300,7 @@ def update_ozon_stocks():
         "warehouse_type": "ALL"
         }
         response = requests.post(url, headers=headers, json=data)
-        print(response.status_code)
+        
         company = ozon.company
     
         if response.status_code == 200:
@@ -316,7 +316,7 @@ def update_ozon_stocks():
             
             date = datetime.now()
             
-            product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
+            product, _ = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="ozon")
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="ozon")
             try:
                 product_stock, created_s = ProductStock.objects.get_or_create(
@@ -332,10 +332,10 @@ def update_ozon_stocks():
                 else:
                     product_stock.quantity = quantity
                     product_stock.save()
-                print(product_stock)
+                
             except:
                 pass
-            print(product_stock)
+            
             
     return "Succes"
 
@@ -373,7 +373,7 @@ def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
             orders = response.json()['orders']
             return orders
         else:
-            print(f"Error: {response.status_code} - {response.text}")
+            
             return []
     return orders
 
@@ -429,7 +429,7 @@ def update_yandex_market_sales():
                 for product in products:
                     
                     vendor_code = product["offerId"]
-                    product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
+                    product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="yandexmarket")
                     product_s = ProductSale.objects.get_or_create(
                         product=product_obj,
                         company=company,
@@ -489,7 +489,7 @@ def update_yandex_market_orders():
                 
                 for product in products:
                     vendor_code = product["offerId"]
-                    product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
+                    product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="yandexmarket")
                     product_s = ProductOrder.objects.get_or_create(
                         product=product_obj,
                         company=company,
@@ -531,7 +531,7 @@ def update_yandex_stocks():
         result1 = []
         response2 = requests.post(url.format(campaignId=fby), headers=headers)
         result2 = []
-        print(response1.status_code)
+        
         while True:
             if response1.status_code == 200 and "paging" in response1.json()["result"].keys() and "nextPageToken" in response1.json()["result"]["paging"].keys():
                 result1 += response1.json()["result"]["warehouses"]
@@ -569,7 +569,7 @@ def update_yandex_stocks():
                 
             
             
-                product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
+                product, _ = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="yandexmarket")
                 warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="yandexmarket")
                 try:
                     product_stock, created_s = ProductStock.objects.get_or_create(
@@ -585,9 +585,9 @@ def update_yandex_stocks():
                     else:
                         product_stock.quantity = quantity
                         product_stock.save()
-                    print(product_stock)
+                    
                 except:
                     pass
-                print(product_stock)
+                
                 
     return "Succes"

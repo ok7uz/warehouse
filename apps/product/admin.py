@@ -5,12 +5,13 @@ from django.db.models import Count
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('vendor_code', 'ozon_sku')
+    list_display = ['vendor_code']
 
 @admin.register(ProductSale)
 class ProductSaleAdmin(admin.ModelAdmin):
-    list_display = ('vendor_code', 'stock')
+    list_display = ('vendor_code', 'marketplace_type')
     search_fields = ['product__vendor_code',"id"]
+    list_filter = ["marketplace_type"]
 
     def vendor_code(self, productsale_obj):
         return productsale_obj.product.vendor_code
@@ -47,6 +48,7 @@ class ProductSaleAdmin(admin.ModelAdmin):
 @admin.register(Warehouse)
 class WareHouseAdminView(admin.ModelAdmin):
     search_fields=["name","oblast_okrug_name"]
+    
     
 @admin.register(WarehouseForStock)
 class WareHouseForStockAdminView(admin.ModelAdmin):

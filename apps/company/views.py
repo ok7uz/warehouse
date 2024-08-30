@@ -17,6 +17,7 @@ COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('date_from', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date from"),
     OpenApiParameter('date_to', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date to"),
     OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket']),
+    OpenApiParameter('article', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Search by article"),
 ]
 
 
@@ -105,6 +106,7 @@ class CompanySalesView(APIView):
         parameters=COMPANY_SALES_PARAMETRS
     )
     def get(self, request: Request, company_id):
+        
         update_wildberries_sales.delay()
         update_ozon_sales.delay()
         update_yandex_market_sales.delay()

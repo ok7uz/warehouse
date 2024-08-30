@@ -1,10 +1,7 @@
-from typing import Iterable
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from apps.company.models import Company
-from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
-
 
 class Warehouse(models.Model):
 
@@ -41,7 +38,14 @@ class WarehouseForStock(models.Model):
 class Product(models.Model):
     id = models.AutoField(primary_key=True, editable=False, unique=True)
     vendor_code = models.CharField(max_length=1000)
-    ozon_sku = models.CharField(max_length=1000, null=True)
+   
+    MARKETPLACE_CHOICES = [
+    ('wildberries', 'Wildberries'),
+    ('ozon', 'Ozon'),
+    ('yandexmarket', 'YandexMarket'),
+    ]
+    
+    marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
 
     class Meta:
         db_table = "product"
