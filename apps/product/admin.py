@@ -11,7 +11,7 @@ class ProductAdmin(admin.ModelAdmin):
 class ProductSaleAdmin(admin.ModelAdmin):
     list_display = ('vendor_code', 'marketplace_type')
     search_fields = ['product__vendor_code',"id"]
-    list_filter = ["marketplace_type"]
+    list_filter = ["marketplace_type","date"]
 
     def vendor_code(self, productsale_obj):
         return productsale_obj.product.vendor_code
@@ -21,9 +21,9 @@ class ProductSaleAdmin(admin.ModelAdmin):
         return ProductSale.objects.filter(date__date=date).values('product').annotate(sales_count=Count('id')).count()
     
 @admin.register(ProductOrder)
-class ProductSaleAdmin(admin.ModelAdmin):
+class ProductOrderAdmin(admin.ModelAdmin):
     list_display = ('vendor_code', 'stock')
-    list_filter = ["marketplace_type"]
+    list_filter = ["marketplace_type","date"]
 
     def vendor_code(self, productsale_obj):
         return productsale_obj.product.vendor_code
