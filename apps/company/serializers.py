@@ -73,11 +73,11 @@ class CompanyCreateAndUpdateSerializers(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
         if validated_data.get('wb_api_key', None):
-            print(validated_data.get('wb_api_key', None))
+            
             self.willberries_change(validated_data['wb_api_key'], instance)
 
         if validated_data.get('api_token', None) and validated_data.get('client_id', None):
-            print("'bor'")
+            
             self.ozon_change(validated_data['api_token'], validated_data['client_id'], instance)
 
         if (validated_data.get('api_key_bearer', None) and validated_data.get('fby_campaign_id', None) and
@@ -312,7 +312,7 @@ class CompanyStocksSerializer(serializers.Serializer):
 
         if service == 'ozon':
             products = ProductStock.objects.filter(company=obj, marketplace_type="ozon",date__gte=date_from,date__lte=date_to,product__vendor_code=vendor_code).order_by("product_id").distinct('product_id')
-            print(products)
+            
         elif service == 'yandex':
             products = ProductStock.objects.filter(company=obj, marketplace_type="yandex",date__gte=date_from,date__lte=date_to,product__vendor_code=vendor_code).order_by("product_id").distinct('product_id')
         elif service == 'wildberries':

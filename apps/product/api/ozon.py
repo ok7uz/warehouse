@@ -181,7 +181,7 @@ async def process_data2(date_format):
         if 'result' not in response:
             return {'error': 'Invalid response format', 'response': response}
 
-        print(response)
+        
     return []
     #     tasks = []
     #     for item in response['result'].get('data', []):

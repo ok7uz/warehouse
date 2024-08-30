@@ -361,9 +361,6 @@ def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
             
             url = f"https://api.partner.market.yandex.ru/campaigns/{client_id}/orders?orderIds=&status={status}&substatus=&fromDate={date_from}&toDate={date_to}&supplierShipmentDateFrom=&supplierShipmentDateTo=&updatedAtFrom=&updatedAtTo=&dispatchType=&fake=&hasCis=&onlyWaitingForCancellationApprove=&onlyEstimatedDelivery=&buyerType=&page=&pageSize="
             response = requests.get(url, headers=headers).json()["orders"]
-            with open("orders.json", "w") as f:
-                import json
-                f.write(json.dumps(response,indent=4))
             orders += response
     
     else:

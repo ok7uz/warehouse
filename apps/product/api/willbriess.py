@@ -22,8 +22,7 @@ def wb_data_from_api():
         }
 
     responce = requests.post(url, headers=headers, data=json.dumps(payload))
-    print(responce.json())
+    
     return []
 
 
-print(wb_data_from_api())
