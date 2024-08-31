@@ -34,6 +34,9 @@ class WarehouseForStock(models.Model):
     
     marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
 
+    def __str__(self) -> str:
+        return self.name
+
 
 class Product(models.Model):
     id = models.AutoField(primary_key=True, editable=False, unique=True)

@@ -352,7 +352,7 @@ def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
         orders = []
         months = []
         year = datetime.now().year
-        for month in range(1, 13):  # 1-dan 12-gacha oylarni iteratsiya qilish
+        for month in range(1, 13):  
             first_day = datetime(year, month, 1)
             last_day = datetime(year, month, calendar.monthrange(year, month)[1])
             months.append((first_day.strftime('%Y-%m-%d'), last_day.strftime('%Y-%m-%d')))   

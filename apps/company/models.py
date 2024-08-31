@@ -16,3 +16,6 @@ class Company(models.Model):
         verbose_name = "Company"
         verbose_name_plural = "Companies"
         ordering = ('name',)
+
+    def __str__(self) -> str:
+        return self.name
