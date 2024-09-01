@@ -149,7 +149,7 @@ class CompanySalesSerializer(serializers.ModelSerializer):
         page_size = self.context.get('request').query_params.get('page_size', None)
         date_from = self.context.get('request').query_params.get('date_from', None)
         date_to = self.context.get('request').query_params.get('date_to', None)
-        service = self.context.get('request').query_params.get('service', None)
+        service = self.context.get('request').query_params.get('service', "")
         vendor_code = self.context.get('request').query_params.get('article', "")
         page = int(page) if page else 1
         page_size = int(page_size) if page_size else 10
@@ -173,35 +173,28 @@ class CompanySalesSerializer(serializers.ModelSerializer):
        
         products = products[(page - 1) * page_size: page * page_size]
         results = {}
+
+        # print([product.product.vendor_code for product in products])
         
         for product in products:
             
             p_order = product.product
-            order = product
             vendor_code = product.product.vendor_code
-            date = order.date.strftime("%Y-%m-%d")
             
             if (date_to - date_from).days == 0:
-                regions = [warehouse.warehouse.region_name for warehouse in products]
-                date_ = order.warehouse.region_name
-                warehouse_obj= order.warehouse
-                results[vendor_code] = {datee: 0 for datee in regions}
+                regions = [(warehouse.warehouse.region_name,warehouse.warehouse) for warehouse in products]
+                results[vendor_code] = {warehouse[0] if warehouse[0] else warehouse[1].oblast_okrug_name : 0 for warehouse in regions}
+                for warehouse in regions:
+                    results[vendor_code][warehouse[0]] = ProductSale.objects.filter(company=obj,product=p_order,marketplace_type__contains=service,date__date=date_from,warehouse=warehouse[1]).count()
                 
             else:
-                date_= order.date.strftime("%Y-%m-%d")
-                warehouse_obj = None
                 date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range((date_to - date_from).days + 1)]
                 results[vendor_code] = {datee: 0 for datee in date_range}
             
-            
-            if service == 'ozon':
-                results[vendor_code][date_] = ProductSale.objects.filter(date__date=date, company=obj, marketplace_type="ozon", product=p_order,product__vendor_code__contains=vendor_code, warehouse=warehouse_obj).count()
-            elif service == 'yandexmarket':
-                results[vendor_code][date_] = ProductSale.objects.filter(date__date=date, company=obj, marketplace_type="yandexmarket", product=p_order,product__vendor_code__contains=vendor_code, warehouse=warehouse_obj).count()
-            elif service == 'wildberries':
-                results[vendor_code][date_] = ProductSale.objects.filter(date__date=date, company=obj, marketplace_type="wildberries", product=p_order,product__vendor_code__contains=vendor_code, warehouse=warehouse_obj).count()
-            else:
-                results[vendor_code][date_] = ProductSale.objects.filter(date__date=date, company=obj, product=p_order,product__vendor_code__contains=vendor_code, warehouse=warehouse_obj).count()
+                for date_ in date_range:
+                    date = datetime.datetime.strptime(date_,"%Y-%m-%d")
+                    results[vendor_code][date_] = ProductSale.objects.filter(company=obj,product=p_order,marketplace_type__contains=service,date__date=date).count()
+                
         return results
 
     def get_product_count(self, obj):
@@ -261,33 +254,21 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
         for product in products:
             
             p_order = product.product
-            order = product
             vendor_code = product.product.vendor_code
-            date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d')
-                          for i in range((date_to - date_from).days + 1)]
             
-            date = order.date.strftime("%Y-%m-%d")
-
             if (date_to - date_from).days == 0:
-                regions = [warehouse.warehouse.region_name for warehouse in products]
-                date_ = order.warehouse.region_name
-                warehouse_obj= order.warehouse
-                results[vendor_code] = {datee: 0 for datee in regions}
+                regions = [(warehouse.warehouse.region_name,warehouse.warehouse) for warehouse in products]
+                results[vendor_code] = {warehouse[0] if warehouse[0] else warehouse[1].oblast_okrug_name : 0 for warehouse in regions}
+                for warehouse in regions:
+                    results[vendor_code][warehouse[0]] = ProductOrder.objects.filter(company=obj,product=p_order,marketplace_type__contains=service,date__date=date_from,warehouse=warehouse[1]).count()
                 
             else:
-                date_= order.date.strftime("%Y-%m-%d")
-                warehouse_obj = None
                 date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range((date_to - date_from).days + 1)]
                 results[vendor_code] = {datee: 0 for datee in date_range}
-
-            if service == 'ozon':
-                results[vendor_code][date_] = ProductOrder.objects.filter(date__date=date, company=obj, marketplace_type="ozon", product=p_order,product__vendor_code__contains=vendor_code,warehouse=warehouse_obj).count()
-            elif service == 'yandex':
-                results[vendor_code][date_] = ProductOrder.objects.filter(date__date=date, company=obj, marketplace_type="yandex", product=p_order,product__vendor_code__contains=vendor_code,warehouse=warehouse_obj).count()
-            elif service == 'wildberries':
-                results[vendor_code][date_] = ProductOrder.objects.filter(date__date=date, company=obj, marketplace_type="wildberries", product=p_order,product__vendor_code__contains=vendor_code,warehouse=warehouse_obj).count()
-            else:
-                results[vendor_code][date_] = ProductOrder.objects.filter(date__date=date, company=obj, product=p_order,product__vendor_code__contains=vendor_code,warehouse=warehouse_obj).count()
+            
+                for date_ in date_range:
+                    date = datetime.datetime.strptime(date_,"%Y-%m-%d")
+                    results[vendor_code][date_] = ProductOrder.objects.filter(company=obj,product=p_order,marketplace_type__contains=service,date__date=date).count()
         return results
 
     def get_product_count(self, obj):
@@ -310,6 +291,7 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
 
 
 class CompanyStocksSerializer(serializers.Serializer):
+    
     data = serializers.SerializerMethodField(read_only=True)
     product_count = serializers.SerializerMethodField(read_only=True)
 
@@ -391,3 +373,4 @@ class CompanyStocksSerializer(serializers.Serializer):
         else:
             count = ProductStock.objects.filter(company=obj,date__gte=date_from, date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id').count()
         return count
+    

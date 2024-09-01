@@ -22,8 +22,9 @@ class ProductSaleAdmin(admin.ModelAdmin):
     
 @admin.register(ProductOrder)
 class ProductOrderAdmin(admin.ModelAdmin):
-    list_display = ('vendor_code', 'stock')
+    list_display = ('vendor_code', 'date')
     list_filter = ["marketplace_type","date"]
+    search_fields = ['product__vendor_code',"id"]
 
     def vendor_code(self, productsale_obj):
         return productsale_obj.product.vendor_code
