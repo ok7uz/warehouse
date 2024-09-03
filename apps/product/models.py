@@ -9,7 +9,6 @@ class Warehouse(models.Model):
     country_name = models.CharField(max_length=200)
     oblast_okrug_name = models.CharField(max_length=200)
     region_name = models.CharField(max_length=200)
-    shelf = models.CharField(max_length=10)
 
     class Meta:
 
@@ -17,7 +16,7 @@ class Warehouse(models.Model):
         verbose_name = "Warehouse"
         verbose_name_plural = "Warehouse"
         ordering = ["name"]
-        unique_together = ("name","country_name", "oblast_okrug_name", "region_name", "shelf")
+        unique_together = ("name","country_name", "oblast_okrug_name", "region_name")
 
     def __str__(self) -> str:
         return self.name
@@ -37,7 +36,6 @@ class WarehouseForStock(models.Model):
     def __str__(self) -> str:
         return self.name
 
-
 class Product(models.Model):
     id = models.AutoField(primary_key=True, editable=False, unique=True)
     vendor_code = models.CharField(max_length=1000)
@@ -55,7 +53,6 @@ class Product(models.Model):
         verbose_name = "Product"
         verbose_name_plural = "Products"
         ordering = ('vendor_code',)
-
 
 class ProductSale(models.Model):
     
@@ -79,7 +76,6 @@ class ProductSale(models.Model):
         verbose_name_plural = "Product sales"
         ordering = ('product__vendor_code',)
         unique_together = ('product', 'company', 'date')
-
 
 class ProductOrder(models.Model):
     id = models.AutoField(primary_key=True, editable=False, unique=True)
@@ -129,5 +125,15 @@ class ProductStock(models.Model):
         ordering = ('product__vendor_code',)
         unique_together = ('product', 'company', 'warehouse')
 
+class WarehouseForCompany(models.Model):
+    
+    product = models.ForeignKey(Product,on_delete=models.CASCADE)
+    shelf = models.CharField(max_length=20)
+    stock = models.PositiveIntegerField(default=0)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
+    class Meta:
+        db_table = "warehouse_for_company"
+        verbose_name = "Склад"
+        ordering = ["stock"]
 

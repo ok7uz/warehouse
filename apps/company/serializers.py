@@ -229,7 +229,7 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
         page_size = self.context.get('request').query_params.get('page_size', None)
         date_from = self.context.get('request').query_params.get('date_from', None)
         date_to = self.context.get('request').query_params.get('date_to', None)
-        service = self.context.get('request').query_params.get('service', None)
+        service = self.context.get('request').query_params.get('service', "")
         vendor_code = self.context.get('request').query_params.get('article', "")
         page = int(page) if page else 1
         page_size = int(page_size) if page_size else 10
