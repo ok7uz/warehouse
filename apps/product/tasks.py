@@ -150,17 +150,17 @@ def update_wildberries_stocks():
             
     return "Succes"
             
-def get_paid_orders(url, headers, date_from, status="delivered"):
+def get_paid_orders(url, headers, date_from, status="delivered",status_2="paid"):
     date = datetime.strptime(date_from,"%Y-%m-%dT%H:%M:%S.%fZ")
     data = {
         "dir": "asc",
         "filter": {
             "status": status,
-            "financial_status": "paid",
+            "financial_status": status_2,
             "since": date_from,
             "to": (date + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         },
-        "limit": 1000,  # Ko'proq natija olish uchun limitni oshiring
+        "limit": 1000,  
         "offset": 0,
         "with": {
             "analytics_data": True,
@@ -172,7 +172,7 @@ def get_paid_orders(url, headers, date_from, status="delivered"):
     if response.status_code == 200:
         return response.json().get('result', [])
     else:
-        
+      
         return []
     
 @app.task
@@ -198,7 +198,7 @@ def update_ozon_sales():
         if not date_from:
             date_from = (datetime.now()-timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
-        while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') != datetime.now():
+        while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') <= datetime.now():
             count1 = ProductSale.objects.filter(marketplace_type="ozon").count()
             fbo_orders = get_paid_orders(FBO_URL,headers,date_from)
             fbs_orders = get_paid_orders(FBS_URL,headers,date_from)
@@ -236,11 +236,15 @@ def update_ozon_sales():
                     warehouse=warehouse,
                     marketplace_type = "ozon"
                 )
-               
-            date_from = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-            count2 = ProductSale.objects.filter(marketplace_type="ozon").count()
-            if count1 == count2:
-                break
+            try:
+                date_from1 = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date
+            except:
+                date_from1 = (datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') + timedelta(days=3))
+            if date_from1 != datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ'):
+                date_from = date_from1.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            else:
+                date_from = (date_from1 + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
 
 @app.task
 def update_ozon_orders():
@@ -263,14 +267,12 @@ def update_ozon_orders():
             'Content-Type': 'application/json'
         }
 
-        while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') != datetime.now():
-            count1 = ProductOrder.objects.filter(marketplace_type="ozon").count()
+        while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') <= datetime.now():
 
-            fbo_orders = get_paid_orders(FBO_URL,headers,date_from,"awaiting_packaging")
-            fbs_orders = get_paid_orders(FBS_URL,headers,date_from, "awaiting_deliver")
-            fbo_orders2 = get_paid_orders(FBO_URL,headers,date_from,"awaiting_deliver")
-            fbs_orders2 = get_paid_orders(FBS_URL,headers,date_from, "awaiting_packaging")
-            results = fbo_orders + fbs_orders + fbs_orders2 + fbo_orders2
+            fbo_orders = get_paid_orders(FBO_URL,headers,date_from,"awaiting_packaging","")
+            fbs_orders = get_paid_orders(FBS_URL,headers,date_from, "awaiting_deliver","")
+            
+            results = fbo_orders + fbs_orders 
 
             for item in results:
                 
@@ -286,7 +288,7 @@ def update_ozon_orders():
 
                 product = Product.objects.filter(vendor_code=sku)
                 if product.exists():
-                    product = product.exists()
+                    product = product.first()
                 else:
                     product, created_p = Product.objects.get_or_create(vendor_code=sku)
                 warehouse, created_w = Warehouse.objects.get_or_create(
@@ -303,12 +305,16 @@ def update_ozon_orders():
                     warehouse=warehouse,
                     marketplace_type = "ozon"
                 )
-                date_from = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-                count2 = ProductOrder.objects.filter(marketplace_type="ozon").count()
-                if count1 == count2:
-                    break
+             
+            try:
+                date_from1 = ProductOrder.objects.filter(marketplace_type="ozon").latest('date').date
+            except:
+                date_from1 = (datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') + timedelta(days=3))
+            if date_from1 != datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ'):
+                date_from = date_from1.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            else:
+                date_from = (date_from1 + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
-                
 
 @app.task
 def update_ozon_stocks():

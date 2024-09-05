@@ -125,9 +125,9 @@ class CompanyOrdersView(APIView):
     )
     def get(self, request, company_id):
         
-        update_wildberries_orders.delay()
+        # update_wildberries_orders.delay()
         update_ozon_orders.delay()
-        update_yandex_market_orders.delay()
+        # update_yandex_market_orders.delay()
         
         company = get_object_or_404(Company,id=company_id)
         serializer = CompanyOrdersSerializer(company, context={'request': request})
