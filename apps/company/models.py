@@ -19,3 +19,8 @@ class Company(models.Model):
 
     def __str__(self) -> str:
         return self.name
+    
+class CompanySettings(models.Model):
+
+    last_sale_days = models.IntegerField()
+    sale_coefficient = models.DecimalField(max_digits=3,decimal_places=2)

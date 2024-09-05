@@ -47,18 +47,17 @@ def update_wildberries_sales():
 
                 wildberries = wildberries
                 warehouse = warehouse
-                try:
-                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
-                    date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
-                    product_sale, created_sale= ProductSale.objects.get_or_create(
-                        product=product,
-                        company=company,
-                        date=date,
-                        marketplace_type="wildberries",
-                        warehouse=warehouse
-                    )
-                except:
-                    pass
+            
+                product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
+                date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
+                product_sale, created_sale= ProductSale.objects.get_or_create(
+                    product=product,
+                    company=company,
+                    date=date,
+                    marketplace_type="wildberries",
+                    warehouse=warehouse
+                )
+                
                 
         else:
             return response.text
@@ -92,18 +91,16 @@ def update_wildberries_orders():
 
                 wildberries = wildberries
                 warehouse = warehouse
-                try:
-                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
-                    date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
-                    product_order, created_sale= ProductOrder.objects.get_or_create(
-                        product=product,
-                        company=company,
-                        date=date,
-                        marketplace_type="wildberries",
-                        warehouse=warehouse
-                    )
-                except:
-                    pass
+                
+                product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
+                date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
+                product_order, created_sale= ProductOrder.objects.get_or_create(
+                    product=product,
+                    company=company,
+                    date=date,
+                    marketplace_type="wildberries",
+                    warehouse=warehouse
+                )
                 
         else:
             return response.text
@@ -126,24 +123,20 @@ def update_wildberries_stocks():
             
             product, _ = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="wildberries")
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="wildberries")
-            try:
-                product_stock, created_s = ProductStock.objects.get_or_create(
-                    product=product,
-                    warehouse=warehouse_obj,
-                    marketplace_type = "wildberries",
-                    company=company,
-                    date=date
-                )
-                if created_s:
-                    product_stock.quantity = quantity
-                    product_stock.save()
-                else:
-                    product_stock.quantity = quantity
-                    product_stock.save()
-                
-            except:
-                pass
-
+            
+            product_stock, created_s = ProductStock.objects.get_or_create(
+                product=product,
+                warehouse=warehouse_obj,
+                marketplace_type = "wildberries",
+                company=company,
+                date=date
+            )
+            if created_s:
+                product_stock.quantity = quantity
+                product_stock.save()
+            else:
+                product_stock.quantity = quantity
+                product_stock.save()
             
     return "Succes"
             
@@ -198,13 +191,13 @@ def update_ozon_sales():
 
         for item in results:
             
-            date = item['in_process_at']
+            date = datetime.strptime(item['in_process_at'],"")
             sku = item['products'][0]['offer_id']
             
             if "warehouse_name" in item["analytics_data"].keys():
                 warehouse_name = item["analytics_data"]['warehouse_name']
-            
-            warehouse_name = ""
+            else:
+                warehouse_name = ""
             oblast_okrug_name = item["analytics_data"]['region']
             region_name = item["analytics_data"]['city']
 
