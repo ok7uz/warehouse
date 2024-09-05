@@ -47,8 +47,11 @@ def update_wildberries_sales():
 
                 wildberries = wildberries
                 warehouse = warehouse
-            
-                product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
+                product = Product.objects.filter(vendor_code=item['supplierArticle'])
+                if product.exists():
+                    product = product.first()
+                else:
+                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
                 date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
                 product_sale, created_sale= ProductSale.objects.get_or_create(
                     product=product,
@@ -57,6 +60,7 @@ def update_wildberries_sales():
                     marketplace_type="wildberries",
                     warehouse=warehouse
                 )
+                
                 
                 
         else:
@@ -92,7 +96,11 @@ def update_wildberries_orders():
                 wildberries = wildberries
                 warehouse = warehouse
                 
-                product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'],marketplace_type="wildberries")
+                product = Product.objects.filter(vendor_code=item['supplierArticle'])
+                if product.exists():
+                    product = product.first()
+                else:
+                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
                 date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
                 product_order, created_sale= ProductOrder.objects.get_or_create(
                     product=product,
@@ -114,14 +122,16 @@ def update_wildberries_stocks():
         response = requests.get(wildberries_stocks_url, headers={'Authorization': f'Bearer {wb_api_key}'})
 
         for item in response.json():
-            
-            vendor_code = item['supplierArticle']
             warehouse = item['warehouseName']
             quantity = item['quantity']
             company = wildberries.company
             date = datetime.strptime(item["lastChangeDate"],"%Y-%m-%dT%H:%M:%S")
             
-            product, _ = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="wildberries")
+            product = Product.objects.filter(vendor_code=item['supplierArticle'])
+            if product.exists():
+                product = product.first()
+            else:
+                product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="wildberries")
             
             product_stock, created_s = ProductStock.objects.get_or_create(
@@ -141,13 +151,14 @@ def update_wildberries_stocks():
     return "Succes"
             
 def get_paid_orders(url, headers, date_from, status="delivered"):
+    date = datetime.strptime(date_from,"%Y-%m-%dT%H:%M:%S.%fZ")
     data = {
         "dir": "asc",
         "filter": {
             "status": status,
             "financial_status": "paid",
             "since": date_from,
-            "to": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+            "to": (date + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         },
         "limit": 1000,  # Ko'proq natija olish uchun limitni oshiring
         "offset": 0,
@@ -169,12 +180,7 @@ def update_ozon_sales():
     
     FBO_URL = "https://api-seller.ozon.ru/v2/posting/fbo/list"
     FBS_URL = "https://api-seller.ozon.ru/v2/posting/fbs/list"
-    try:
-        date_from = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-    except:
-        date_from = False
-    if not date_from:
-        date_from = (datetime.now()-timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    
     for ozon in Ozon.objects.all():
         company = ozon.company
         api_token = ozon.api_token
@@ -185,30 +191,44 @@ def update_ozon_sales():
             'Content-Type': 'application/json'
         }
 
-        fbo_orders = get_paid_orders(FBO_URL,headers,date_from)
-        fbs_orders = get_paid_orders(FBS_URL,headers,date_from)
-        results = fbo_orders + fbs_orders
+        try:
+            date_from = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        except:
+            date_from = False
+        if not date_from:
+            date_from = (datetime.now()-timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
-        for item in results:
-            
-            date = datetime.strptime(item['in_process_at'],"")
-            sku = item['products'][0]['offer_id']
-            
-            if "warehouse_name" in item["analytics_data"].keys():
-                warehouse_name = item["analytics_data"]['warehouse_name']
-            else:
-                warehouse_name = ""
-            oblast_okrug_name = item["analytics_data"]['region']
-            region_name = item["analytics_data"]['city']
+        while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') != datetime.now():
+            count1 = ProductSale.objects.filter(marketplace_type="ozon").count()
+            fbo_orders = get_paid_orders(FBO_URL,headers,date_from)
+            fbs_orders = get_paid_orders(FBS_URL,headers,date_from)
+            results = fbo_orders + fbs_orders
 
-            product, created_p = Product.objects.get_or_create(vendor_code=sku,marketplace_type="ozon")
-            warehouse, created_w = Warehouse.objects.get_or_create(
-                name = warehouse_name,
-                country_name = "Russia",
-                oblast_okrug_name = oblast_okrug_name,
-                region_name = region_name
-            )
-            try:
+            for item in results:
+                try:
+                    date = datetime.strptime(item['in_process_at'],"%Y-%m-%dT%H:%M:%S.%fZ")
+                except:
+                    date = datetime.strptime(item['in_process_at'],"%Y-%m-%dT%H:%M:%SZ")
+                sku = item['products'][0]['offer_id']
+                
+                if "warehouse_name" in item["analytics_data"].keys():
+                    warehouse_name = item["analytics_data"]['warehouse_name']
+                else:
+                    warehouse_name = ""
+                oblast_okrug_name = item["analytics_data"]['region']
+                region_name = item["analytics_data"]['city']
+                product = Product.objects.filter(vendor_code=sku)
+                if product.exists():
+                    product = product.first()
+                else:
+                    product, created_p = Product.objects.get_or_create(vendor_code=sku)
+                warehouse, created_w = Warehouse.objects.get_or_create(
+                    name = warehouse_name,
+                    country_name = "Russia",
+                    oblast_okrug_name = oblast_okrug_name,
+                    region_name = region_name
+                )
+                
                 product_sale = ProductSale.objects.get_or_create(
                     product=product,
                     company=company,
@@ -216,8 +236,11 @@ def update_ozon_sales():
                     warehouse=warehouse,
                     marketplace_type = "ozon"
                 )
-            except Exception:
-                pass
+               
+            date_from = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            count2 = ProductSale.objects.filter(marketplace_type="ozon").count()
+            if count1 == count2:
+                break
 
 @app.task
 def update_ozon_orders():
@@ -240,30 +263,39 @@ def update_ozon_orders():
             'Content-Type': 'application/json'
         }
 
-        fbo_orders = get_paid_orders(FBO_URL,headers,date_from,"awaiting_packaging")
-        fbs_orders = get_paid_orders(FBS_URL,headers,date_from, "awaiting_deliver")
-        results = fbo_orders + fbs_orders
+        while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') != datetime.now():
+            count1 = ProductOrder.objects.filter(marketplace_type="ozon").count()
 
-        for item in results:
-            
-            date = item['in_process_at']
-            sku = item['products'][0]['offer_id']
-            
-            if "warehouse_name" in item["analytics_data"].keys():
-                warehouse_name = item["analytics_data"]['warehouse_name']
-            
-            warehouse_name = ""
-            oblast_okrug_name = item["analytics_data"]['region']
-            region_name = item["analytics_data"]['city']
+            fbo_orders = get_paid_orders(FBO_URL,headers,date_from,"awaiting_packaging")
+            fbs_orders = get_paid_orders(FBS_URL,headers,date_from, "awaiting_deliver")
+            fbo_orders2 = get_paid_orders(FBO_URL,headers,date_from,"awaiting_deliver")
+            fbs_orders2 = get_paid_orders(FBS_URL,headers,date_from, "awaiting_packaging")
+            results = fbo_orders + fbs_orders + fbs_orders2 + fbo_orders2
 
-            product, created_p = Product.objects.get_or_create(vendor_code=sku, marketplace_type="ozon")
-            warehouse, created_w = Warehouse.objects.get_or_create(
-                name = warehouse_name,
-                country_name = "Russia",
-                oblast_okrug_name = oblast_okrug_name,
-                region_name = region_name
-            )
-            try:
+            for item in results:
+                
+                date = item['in_process_at']
+                sku = item['products'][0]['offer_id']
+                
+                if "warehouse_name" in item["analytics_data"].keys():
+                    warehouse_name = item["analytics_data"]['warehouse_name']
+                
+                warehouse_name = ""
+                oblast_okrug_name = item["analytics_data"]['region']
+                region_name = item["analytics_data"]['city']
+
+                product = Product.objects.filter(vendor_code=sku)
+                if product.exists():
+                    product = product.exists()
+                else:
+                    product, created_p = Product.objects.get_or_create(vendor_code=sku)
+                warehouse, created_w = Warehouse.objects.get_or_create(
+                    name = warehouse_name,
+                    country_name = "Russia",
+                    oblast_okrug_name = oblast_okrug_name,
+                    region_name = region_name
+                )
+                
                 product_sale = ProductOrder.objects.get_or_create(
                     product=product,
                     company=company,
@@ -271,8 +303,12 @@ def update_ozon_orders():
                     warehouse=warehouse,
                     marketplace_type = "ozon"
                 )
-            except Exception:
-                pass
+                date_from = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                count2 = ProductOrder.objects.filter(marketplace_type="ozon").count()
+                if count1 == count2:
+                    break
+
+                
 
 @app.task
 def update_ozon_stocks():
@@ -308,28 +344,25 @@ def update_ozon_stocks():
             quantity = item['reserved_amount']
             
             date = datetime.now()
-            
-            product, _ = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="ozon")
+            product = Product.objects.filter(vendor_code=vendor_code)
+            if product.exists():
+                product = product.first()
+            else:
+                product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="ozon")
-            try:
-                product_stock, created_s = ProductStock.objects.get_or_create(
-                    product=product,
-                    warehouse=warehouse_obj,
-                    marketplace_type = "ozon",
-                    company=company,
-                    date=date
-                )
-                if created_s:
-                    product_stock.quantity = quantity
-                    product_stock.save()
-                else:
-                    product_stock.quantity = quantity
-                    product_stock.save()
-                
-            except:
-                pass
-            
-            
+            product_stock, created_s = ProductStock.objects.get_or_create(
+                product=product,
+                warehouse=warehouse_obj,
+                marketplace_type = "ozon",
+                company=company,
+                date=date
+            )
+            if created_s:
+                product_stock.quantity = quantity
+                product_stock.save()
+            else:
+                product_stock.quantity = quantity
+                product_stock.save()        
     return "Succes"
 
 def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
@@ -419,7 +452,11 @@ def update_yandex_market_sales():
                 for product in products:
                     
                     vendor_code = product["offerId"]
-                    product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="yandexmarket")
+                    product_obj = Product.objects.filter(vendor_code=vendor_code)
+                    if product_obj.exists():
+                        product_obj = product_obj.first()
+                    else:
+                        product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
                     product_s = ProductSale.objects.get_or_create(
                         product=product_obj,
                         company=company,
@@ -479,7 +516,11 @@ def update_yandex_market_orders():
                 
                 for product in products:
                     vendor_code = product["offerId"]
-                    product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="yandexmarket")
+                    product_obj= Product.objects.filter(vendor_code=vendor_code)
+                    if product_obj.exists():
+                        product_obj = product_obj.first()
+                    else:
+                        product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
                     product_s = ProductOrder.objects.get_or_create(
                         product=product_obj,
                         company=company,
@@ -556,10 +597,12 @@ def update_yandex_stocks():
                     if stock and stock["type"] == "AVAILABLE":
                         count += stock["count"]
                 quantity = count
-                
             
-            
-                product, _ = Product.objects.get_or_create(vendor_code=vendor_code,marketplace_type="yandexmarket")
+                product= Product.objects.filter(vendor_code=vendor_code)
+                if product.exists():
+                    product = product.first()
+                else:
+                    product, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
                 warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="yandexmarket")
                 try:
                     product_stock, created_s = ProductStock.objects.get_or_create(

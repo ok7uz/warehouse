@@ -1,6 +1,6 @@
 import datetime
 
-from django.db.models import Sum
+from django.db.models import Sum, Subquery, OuterRef, Count, IntegerField
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
@@ -152,13 +152,21 @@ class CompanySalesSerializer(serializers.ModelSerializer):
         date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
 
+        sales_count = ProductSale.objects.filter(
+            product=OuterRef('pk'),
+            date__date__gte=date_from,
+            date__date__lte=date_to
+        ).order_by().values('product').annotate(count=Count('id')).values('count')
+
         products = ProductSale.objects.filter(
             company=obj,
             marketplace_type__contains=service,
             date__date__gte=date_from,
             date__date__lte=date_to,
             product__vendor_code__contains=vendor_code
-        ).order_by('product_id',"product__vendor_code").distinct('product_id')
+        ).select_related('warehouse').annotate(
+            sales_count=Subquery(sales_count, output_field=IntegerField())
+        ).order_by('product_id', '-sales_count', 'product__vendor_code').distinct('product_id')
 
         products = products[(page - 1) * page_size: page * page_size]
         product_ids = products.values_list('product_id', flat=True)

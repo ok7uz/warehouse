@@ -39,14 +39,6 @@ class WarehouseForStock(models.Model):
 class Product(models.Model):
     id = models.AutoField(primary_key=True, editable=False, unique=True)
     vendor_code = models.CharField(max_length=1000)
-   
-    MARKETPLACE_CHOICES = [
-    ('wildberries', 'Wildberries'),
-    ('ozon', 'Ozon'),
-    ('yandexmarket', 'YandexMarket'),
-    ]
-    
-    marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
 
     class Meta:
         db_table = "product"
@@ -75,7 +67,7 @@ class ProductSale(models.Model):
         verbose_name = "Product sale"
         verbose_name_plural = "Product sales"
         ordering = ('product__vendor_code',)
-        unique_together = ('product', 'company', 'date')
+        unique_together = ('product', 'company', 'date', 'warehouse', 'marketplace_type')
 
 class ProductOrder(models.Model):
     id = models.AutoField(primary_key=True, editable=False, unique=True)
@@ -98,7 +90,7 @@ class ProductOrder(models.Model):
         verbose_name = "Product order"
         verbose_name_plural = "Product orders"
         ordering = ('product__vendor_code',)
-        unique_together = ('product', 'company', 'date')
+        unique_together = ('product', 'company', 'date', 'warehouse', 'marketplace_type')
 
 class ProductStock(models.Model):
     
@@ -123,7 +115,7 @@ class ProductStock(models.Model):
         verbose_name = "Product stock"
         verbose_name_plural = "Product stocks"
         ordering = ('product__vendor_code',)
-        unique_together = ('product', 'company', 'warehouse')
+        unique_together = ('product', 'company', 'date', 'warehouse', 'marketplace_type')
 
 class WarehouseForCompany(models.Model):
     
