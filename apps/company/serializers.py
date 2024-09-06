@@ -383,6 +383,8 @@ class CompanyStocksSerializer(serializers.Serializer):
                             date_ = product_stock.latest("date").date
                             product_stock = ProductStock.objects.filter(date=date_, company=obj, product=product, marketplace_type__contains=service)
                             quentity = product_stock.aggregate(total=Sum('quantity')).get('total',0)
+                        else:
+                            quentity = 0
                     dc[datee] = quentity
                 results[vendor_code] = dc
             
