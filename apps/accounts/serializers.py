@@ -37,8 +37,6 @@ class UserLoginSerializers(serializers.ModelSerializer):
         model = CustomUser
         fields = ['username', 'password']
 
-
-
 class UserProfileSerializers(serializers.ModelSerializer):
     """
     Serializer for user profile details.
@@ -51,7 +49,6 @@ class UserProfileSerializers(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'groups', 'first_name', 'last_name', 'avatar', 'chat_id']
-
 
 class UserListSerializers(serializers.ModelSerializer):
     """
@@ -85,7 +82,6 @@ class UserListSerializers(serializers.ModelSerializer):
         instance.avatar = validated_data.get('avatar', instance.avatar)  # Update avatar if provided
         instance.save()
         return instance
-
 
 class CustomUserSerializer(serializers.ModelSerializer):
     groups = serializers.PrimaryKeyRelatedField(queryset=Group.objects.all(), many=True)

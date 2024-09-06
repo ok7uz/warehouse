@@ -152,37 +152,15 @@ class CompanySalesSerializer(serializers.ModelSerializer):
 
         date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
+        date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range((date_to - date_from).days + 1)]
 
-        sales_count = ProductSale.objects.filter(
-            product=OuterRef('pk'),
+        products = ProductSale.objects.filter(
+            company=obj,
+            marketplace_type__contains=service,
             date__date__gte=date_from,
-            date__date__lte=date_to
-        ).order_by().values('product').annotate(count=Count('id')).values('count')
-        
-        if sort =="-1" or sort == "Z-A":
-            products = ProductSale.objects.filter(
-                company=obj,
-                marketplace_type__contains=service,
-                date__date__gte=date_from,
-                date__date__lte=date_to,
-                product__vendor_code__contains=vendor_code
-            ).select_related('warehouse').annotate(
-                sales_count=Subquery(sales_count, output_field=IntegerField())
-            ).order_by('product_id', '-sales_count', 'product__vendor_code').distinct('product_id').reverse()
-            print(products.query)
-        else:
-                products = ProductSale.objects.filter(
-                company=obj,
-                marketplace_type__contains=service,
-                date__date__gte=date_from,
-                date__date__lte=date_to,
-                product__vendor_code__contains=vendor_code
-            ).select_related('warehouse').annotate(
-                sales_count=Subquery(sales_count, output_field=IntegerField())
-            ).order_by('product_id', 'sales_count', '-product__vendor_code').distinct('product_id')
-                print(products.query)
-        if sort == "-1" or sort == "Z-A":
-            products.reverse()
+            date__date__lte=date_to,
+            product__vendor_code__contains=vendor_code
+        ).order_by(f'{["-" if sort == "Z-A" else ""][0]}product__vendor_code').distinct('product__vendor_code')
 
         products = products[(page - 1) * page_size: page * page_size]
         product_ids = products.values_list('product_id', flat=True)
@@ -193,9 +171,7 @@ class CompanySalesSerializer(serializers.ModelSerializer):
             date__date__gte=date_from,
             date__date__lte=date_to,
             product_id__in=product_ids
-        ).select_related('warehouse')
-        if sort == "-1":
-            sales_data.reverse()
+        )
 
         results = {}
 
@@ -215,7 +191,6 @@ class CompanySalesSerializer(serializers.ModelSerializer):
 
         else:
 
-            date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range((date_to - date_from).days + 1)]
             for product in products:
                 p_order = product.product
                 vendor_code = product.product.vendor_code
@@ -226,7 +201,9 @@ class CompanySalesSerializer(serializers.ModelSerializer):
                     sale_date = sale.date.strftime('%Y-%m-%d')
                     if sale_date in results[vendor_code]:
                         results[vendor_code][sale_date] += 1
-
+        if sort.isnumeric():  
+            sort = 0 if sort =="-1" else 1      
+            results = dict(sorted(results.items(), key=lambda item: sum(item[1].values()), reverse=bool(int(sort))))
         return results
 
 
@@ -248,7 +225,6 @@ class CompanySalesSerializer(serializers.ModelSerializer):
             count = ProductSale.objects.filter(company=obj,date__date__gte=date_from, date__date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id').count()
         return count
 
-
 class CompanyOrdersSerializer(serializers.ModelSerializer):
     data = serializers.SerializerMethodField(read_only=True)
     product_count = serializers.SerializerMethodField(read_only=True)
@@ -269,25 +245,14 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
 
         date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
-        if sort == "-1" or sort == "Z-A":
-            products = ProductOrder.objects.filter(
-                company=obj,
-                marketplace_type__contains=service,
-                date__date__gte=date_from,
-                date__date__lte=date_to,
-                product__vendor_code__contains=vendor_code
-            ).order_by('product_id',"product__vendor_code").distinct('product_id').reverse()
-        else:
-            products = ProductOrder.objects.filter(
-                company=obj,
-                marketplace_type__contains=service,
-                date__date__gte=date_from,
-                date__date__lte=date_to,
-                product__vendor_code__contains=vendor_code
-            ).order_by('product_id',"product__vendor_code").distinct('product_id')
-
-        if sort == "-1" or sort == "Z-A":
-            products.reverse()
+        
+        products = ProductOrder.objects.filter(
+            company=obj,
+            marketplace_type__contains=service,
+            date__date__gte=date_from,
+            date__date__lte=date_to,
+            product__vendor_code__contains=vendor_code
+        ).order_by(f'{["-" if sort == "Z-A" else ""][0]}product__vendor_code').distinct('product__vendor_code')
 
         products = products[(page - 1) * page_size: page * page_size]
         product_ids = products.values_list('product_id', flat=True)
@@ -299,8 +264,8 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
             date__date__lte=date_to,
             product_id__in=product_ids
         ).select_related('warehouse')
-        if sort == "-1" or sort == "Z-A":
-            sales_data.reverse()
+        
+
 
         results = {}
 
@@ -331,7 +296,9 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
                     sale_date = sale.date.strftime('%Y-%m-%d')
                     if sale_date in results[vendor_code]:
                         results[vendor_code][sale_date] += 1
-
+        if sort.isnumeric():  
+            sort = 0 if sort =="-1" else 1      
+            results = dict(sorted(results.items(), key=lambda item: sum(item[1].values()), reverse=bool(int(sort))))
         return results
 
 
@@ -352,7 +319,6 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
         else:
             count = ProductOrder.objects.filter(company=obj,date__gte=date_from, date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id').count()
         return count
-
 
 class CompanyStocksSerializer(serializers.Serializer):
     
@@ -377,11 +343,8 @@ class CompanyStocksSerializer(serializers.Serializer):
         date_from = datetime.datetime.strptime(date_from,'%Y-%m-%d').date() if date_from else datetime.datetime.now() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.datetime.now() 
  
-        if sort == '-1' or sort == "Z-A":
-            products = ProductStock.objects.filter(company=obj, marketplace_type__contains=service,date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id","quantity").distinct('product_id').reverse()
-        else:
-            products = ProductStock.objects.filter(company=obj, marketplace_type__contains=service,date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id","quantity").distinct('product_id')
-            
+        products = ProductStock.objects.filter(company=obj, marketplace_type__contains=service,date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by(f'{["-" if sort == "Z-A" else ""][0]}product__vendor_code').distinct('product__vendor_code')
+
         products = products[(page - 1) * page_size: page * page_size]
         results = {}
         
@@ -401,14 +364,14 @@ class CompanyStocksSerializer(serializers.Serializer):
                 for datee in date_range:
                     date_1 = datetime.datetime.strptime(datee,"%Y-%m-%d")
                     product_stock = ProductStock.objects.filter(date=datee, company=obj, product=product, marketplace_type__contains=service)
-                    # print(product_stock.query)
+                   
                     if product_stock.exists():
                         quentity = product_stock.aggregate(total=Sum('quantity')).get('total',0)
-                        # print((product_stock), datee)
+                       
                     else:
                         product_stock = ProductStock.objects.filter(date__lte=date_1, company=obj, product=product, marketplace_type__contains=service)
                         if product_stock.exists():
-                            # print((product_stock.latest("date").date), datee)
+                            
                             date_ = product_stock.latest("date").date
                             product_stock = ProductStock.objects.filter(date=date_, company=obj, product=product, marketplace_type__contains=service)
                             quentity = product_stock.aggregate(total=Sum('quantity')).get('total',0)
@@ -416,7 +379,9 @@ class CompanyStocksSerializer(serializers.Serializer):
                             quentity = 0
                     dc[datee] = quentity
                 results[vendor_code] = dc
-            
+        if sort.isnumeric():  
+            sort = 0 if sort =="-1" else 1     
+            results = dict(sorted(results.items(), key=lambda item: sum(item[1].values()), reverse=bool(int(sort))))
         return results
 
     def get_product_count(self, obj):
