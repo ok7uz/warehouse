@@ -147,6 +147,7 @@ class CompanySalesSerializer(serializers.ModelSerializer):
         date_from = self.context.get('request').query_params.get('date_from', None)
         date_to = self.context.get('request').query_params.get('date_to', None)
         service = self.context.get('request').query_params.get('service', "")
+        sort = self.context.get('request').query_params.get('sort', "")
         vendor_code = self.context.get('request').query_params.get('article', "")
 
         date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
@@ -157,16 +158,28 @@ class CompanySalesSerializer(serializers.ModelSerializer):
             date__date__gte=date_from,
             date__date__lte=date_to
         ).order_by().values('product').annotate(count=Count('id')).values('count')
-
-        products = ProductSale.objects.filter(
-            company=obj,
-            marketplace_type__contains=service,
-            date__date__gte=date_from,
-            date__date__lte=date_to,
-            product__vendor_code__contains=vendor_code
-        ).select_related('warehouse').annotate(
-            sales_count=Subquery(sales_count, output_field=IntegerField())
-        ).order_by('product_id', '-sales_count', 'product__vendor_code').distinct('product_id')
+        if sort =="-1":
+            products = ProductSale.objects.filter(
+                company=obj,
+                marketplace_type__contains=service,
+                date__date__gte=date_from,
+                date__date__lte=date_to,
+                product__vendor_code__contains=vendor_code
+            ).select_related('warehouse').annotate(
+                sales_count=Subquery(sales_count, output_field=IntegerField())
+            ).order_by('product_id', '-sales_count', 'product__vendor_code').distinct('product_id').reverse()
+        else:
+                products = ProductSale.objects.filter(
+                company=obj,
+                marketplace_type__contains=service,
+                date__date__gte=date_from,
+                date__date__lte=date_to,
+                product__vendor_code__contains=vendor_code
+            ).select_related('warehouse').annotate(
+                sales_count=Subquery(sales_count, output_field=IntegerField())
+            ).order_by('product_id', '-sales_count', 'product__vendor_code').distinct('product_id')
+        if sort == "-1":
+            products.reverse()
 
         products = products[(page - 1) * page_size: page * page_size]
         product_ids = products.values_list('product_id', flat=True)
@@ -178,6 +191,8 @@ class CompanySalesSerializer(serializers.ModelSerializer):
             date__date__lte=date_to,
             product_id__in=product_ids
         ).select_related('warehouse')
+        if sort == "-1":
+            sales_data.reverse()
 
         results = {}
 
@@ -246,18 +261,30 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
         date_from = self.context.get('request').query_params.get('date_from', None)
         date_to = self.context.get('request').query_params.get('date_to', None)
         service = self.context.get('request').query_params.get('service', "")
+        sort = self.context.get('request').query_params.get('sort', "")
         vendor_code = self.context.get('request').query_params.get('article', "")
 
         date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
+        if sort == "-1":
+            products = ProductOrder.objects.filter(
+                company=obj,
+                marketplace_type__contains=service,
+                date__date__gte=date_from,
+                date__date__lte=date_to,
+                product__vendor_code__contains=vendor_code
+            ).order_by('product_id',"product__vendor_code").distinct('product_id').reverse()
+        else:
+            products = ProductOrder.objects.filter(
+                company=obj,
+                marketplace_type__contains=service,
+                date__date__gte=date_from,
+                date__date__lte=date_to,
+                product__vendor_code__contains=vendor_code
+            ).order_by('product_id',"product__vendor_code").distinct('product_id')
 
-        products = ProductOrder.objects.filter(
-            company=obj,
-            marketplace_type__contains=service,
-            date__date__gte=date_from,
-            date__date__lte=date_to,
-            product__vendor_code__contains=vendor_code
-        ).order_by('product_id',"product__vendor_code").distinct('product_id')
+        if sort == "-1":
+            products.reverse()
 
         products = products[(page - 1) * page_size: page * page_size]
         product_ids = products.values_list('product_id', flat=True)
@@ -269,6 +296,8 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
             date__date__lte=date_to,
             product_id__in=product_ids
         ).select_related('warehouse')
+        if sort == "-1":
+            sales_data.reverse()
 
         results = {}
 
@@ -338,21 +367,18 @@ class CompanyStocksSerializer(serializers.Serializer):
         date_to = self.context.get('request').query_params.get('date_to', None)
         service = self.context.get('request').query_params.get('service', "")
         vendor_code = self.context.get('request').query_params.get('article', "")
+        sort = self.context.get('request').query_params.get('sort', "")
         page = int(page) if page else 1
         page_size = int(page_size) if page_size else 10
         
         date_from = datetime.datetime.strptime(date_from,'%Y-%m-%d').date() if date_from else datetime.datetime.now() - datetime.timedelta(days=6)
         date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.datetime.now() 
-
-        if service == 'ozon':
-            products = ProductStock.objects.filter(company=obj, marketplace_type="ozon",date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id')
-            
-        elif service == 'yandex':
-            products = ProductStock.objects.filter(company=obj, marketplace_type="yandex",date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id')
-        elif service == 'wildberries':
-            products = ProductStock.objects.filter(company=obj, marketplace_type="wildberries",date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id')
+ 
+        if sort == '-1':
+            products = ProductStock.objects.filter(company=obj, marketplace_type__contains=service,date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id","quantity").distinct('product_id').reverse()
         else:
-            products = ProductStock.objects.filter(company=obj,date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id')
+            products = ProductStock.objects.filter(company=obj, marketplace_type__contains=service,date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id","quantity").distinct('product_id')
+            
         products = products[(page - 1) * page_size: page * page_size]
         results = {}
         

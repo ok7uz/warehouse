@@ -114,7 +114,7 @@ class ProductStock(models.Model):
         db_table = "product_stocks"
         verbose_name = "Product stock"
         verbose_name_plural = "Product stocks"
-        ordering = ('product__vendor_code',)
+        
         unique_together = ('product', 'company', 'date', 'warehouse', 'marketplace_type')
 
 class WarehouseForCompany(models.Model):

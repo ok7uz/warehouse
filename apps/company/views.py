@@ -17,6 +17,7 @@ COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('date_from', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date from"),
     OpenApiParameter('date_to', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date to"),
     OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket']),
+    OpenApiParameter('sort', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Sorting",enum=['1', '-1']),
     OpenApiParameter('article', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Search by article"),
 ]
 
