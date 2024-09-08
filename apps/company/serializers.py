@@ -1,13 +1,14 @@
 import datetime
 
-from django.db.models import Sum, Subquery, OuterRef, Count, IntegerField
+from django.db.models import Sum, Count, Max
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from apps.accounts.models import CustomUser
 from apps.company.models import Company
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
-from apps.product.models import Product, ProductStock, ProductSale, ProductOrder
+from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock
+from django.core.paginator import Paginator
 
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -150,62 +151,50 @@ class CompanySalesSerializer(serializers.ModelSerializer):
         sort = self.context.get('request').query_params.get('sort', "")
         vendor_code = self.context.get('request').query_params.get('article', "")
 
-        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
-        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
-        date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range((date_to - date_from).days + 1)]
+        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.datetime.now().date() - datetime.timedelta(days=6)
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.datetime.now().date()
 
-        products = ProductSale.objects.filter(
-            company=obj,
-            marketplace_type__contains=service,
-            date__date__gte=date_from,
-            date__date__lte=date_to,
-            product__vendor_code__contains=vendor_code
-        ).order_by(f'{["-" if sort == "Z-A" else ""][0]}product__vendor_code').distinct('product__vendor_code')
+        filters = {
+            'company': obj,
+            'date__date__gte': date_from,
+            'date__date__lte': date_to,
+            'product__vendor_code__icontains': vendor_code
+        }
+        if service:
+            filters['marketplace_type__icontains'] = service
+        if vendor_code:
+            filters['product__vendor_code__icontains'] = vendor_code
+        ordering_by_alpabit = "-" if sort =="Z-A" else ""
+        queryset = ProductSale.objects.filter(**filters).order_by(f"{ordering_by_alpabit}product__vendor_code")
 
-        products = products[(page - 1) * page_size: page * page_size]
-        product_ids = products.values_list('product_id', flat=True)
-
-        sales_data = ProductSale.objects.filter(
-            company=obj,
-            marketplace_type__contains=service,
-            date__date__gte=date_from,
-            date__date__lte=date_to,
-            product_id__in=product_ids
-        )
-
+        date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
         results = {}
 
         if (date_to - date_from).days == 0:
-
-            for product in products:
-                p_order = product.product
-                vendor_code = product.product.vendor_code
-                if vendor_code not in results:
-                    results[vendor_code] = {}
-
-                for sale in sales_data.filter(product=p_order):
-                    region_name = sale.warehouse.region_name or sale.warehouse.oblast_okrug_name
-                    if region_name not in results[vendor_code]:
-                        results[vendor_code][region_name] = 0
-                    results[vendor_code][region_name] += 1
-
+            date = date_from
+            date_range = queryset.values("warehouse")
+            for warehouse in date_range:
+                day_sales = queryset.filter(date__date=date, warehouse=warehouse).values('product__vendor_code').annotate(total_sales=Count('id'))
+                for sale in day_sales:
+                    product_code = sale['product__vendor_code']
+                    if product_code not in results:
+                        results[product_code] = {warehouse.region_name if warehouse.region_name else warehouse.oblast_okrug_name: 0 for date in date_range}
+                    results[product_code][warehouse.region_name if warehouse.region_name else warehouse.oblast_okrug_name] = sale['total_sales']
+        
         else:
-
-            for product in products:
-                p_order = product.product
-                vendor_code = product.product.vendor_code
-                if vendor_code not in results:
-                    results[vendor_code] = {date: 0 for date in date_range}
-
-                for sale in sales_data.filter(product=p_order):
-                    sale_date = sale.date.strftime('%Y-%m-%d')
-                    if sale_date in results[vendor_code]:
-                        results[vendor_code][sale_date] += 1
+            for date in date_range:
+                day_sales = queryset.filter(date__date=date).values('product__vendor_code').annotate(total_sales=Count('id'))
+                for sale in day_sales:
+                    product_code = sale['product__vendor_code']
+                    if product_code not in results:
+                        results[product_code] = {date.strftime('%Y-%m-%d'): 0 for date in date_range}
+                    results[product_code][date.strftime('%Y-%m-%d')] = sale['total_sales']
         if sort.isnumeric():  
             sort = 0 if sort =="-1" else 1      
             results = dict(sorted(results.items(), key=lambda item: sum(item[1].values()), reverse=bool(int(sort))))
-        return results
-
+        paginator = Paginator(list(results.items()),page_size)
+        page = paginator.get_page(page)
+        return page
 
     def get_product_count(self, obj):
         date_from = self.context.get('request').query_params.get('date_from', None)
@@ -234,7 +223,7 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
         fields = ["id", "data", 'product_count']
 
     def get_data(self, obj):
-        # Parametrlarni olish
+        
         page = int(self.context.get('request').query_params.get('page', 1))
         page_size = int(self.context.get('request').query_params.get('page_size', 10))
         date_from = self.context.get('request').query_params.get('date_from', None)
@@ -243,63 +232,50 @@ class CompanyOrdersSerializer(serializers.ModelSerializer):
         sort = self.context.get('request').query_params.get('sort', "")
         vendor_code = self.context.get('request').query_params.get('article', "")
 
-        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.date.today() - datetime.timedelta(days=6)
-        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.date.today()
-        
-        products = ProductOrder.objects.filter(
-            company=obj,
-            marketplace_type__contains=service,
-            date__date__gte=date_from,
-            date__date__lte=date_to,
-            product__vendor_code__contains=vendor_code
-        ).order_by(f'{["-" if sort == "Z-A" else ""][0]}product__vendor_code').distinct('product__vendor_code')
+        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.datetime.now().date() - datetime.timedelta(days=6)
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.datetime.now().date()
 
-        products = products[(page - 1) * page_size: page * page_size]
-        product_ids = products.values_list('product_id', flat=True)
+        filters = {
+            'company': obj,
+            'date__date__gte': date_from,
+            'date__date__lte': date_to,
+            'product__vendor_code__icontains': vendor_code
+        }
+        if service:
+            filters['marketplace_type__icontains'] = service
+        if vendor_code:
+            filters['product__vendor_code__icontains'] = vendor_code
+        ordering_by_alpabit = "-" if sort =="Z-A" else ""
+        queryset = ProductOrder.objects.filter(**filters).order_by(f"{ordering_by_alpabit}product__vendor_code")
 
-        sales_data = ProductOrder.objects.filter(
-            company=obj,
-            marketplace_type__contains=service,
-            date__date__gte=date_from,
-            date__date__lte=date_to,
-            product_id__in=product_ids
-        ).select_related('warehouse')
-        
-
-
+        date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
         results = {}
 
         if (date_to - date_from).days == 0:
-
-            for product in products:
-                p_order = product.product
-                vendor_code = product.product.vendor_code
-                if vendor_code not in results:
-                    results[vendor_code] = {}
-
-                for sale in sales_data.filter(product=p_order):
-                    region_name = sale.warehouse.region_name or sale.warehouse.oblast_okrug_name
-                    if region_name not in results[vendor_code]:
-                        results[vendor_code][region_name] = 0
-                    results[vendor_code][region_name] += 1
-
+            date = date_from
+            date_range = queryset.values("warehouse")
+            for warehouse in date_range:
+                day_sales = queryset.filter(date__date=date, warehouse=warehouse).values('product__vendor_code').annotate(total_sales=Count('id'))
+                for sale in day_sales:
+                    product_code = sale['product__vendor_code']
+                    if product_code not in results:
+                        results[product_code] = {warehouse.region_name if warehouse.region_name else warehouse.oblast_okrug_name: 0 for date in date_range}
+                    results[product_code][warehouse.region_name if warehouse.region_name else warehouse.oblast_okrug_name] = sale['total_sales']
+        
         else:
-
-            date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range((date_to - date_from).days + 1)]
-            for product in products:
-                p_order = product.product
-                vendor_code = product.product.vendor_code
-                if vendor_code not in results:
-                    results[vendor_code] = {date: 0 for date in date_range}
-
-                for sale in sales_data.filter(product=p_order):
-                    sale_date = sale.date.strftime('%Y-%m-%d')
-                    if sale_date in results[vendor_code]:
-                        results[vendor_code][sale_date] += 1
+            for date in date_range:
+                day_sales = queryset.filter(date__date=date).values('product__vendor_code').annotate(total_sales=Count('id'))
+                for sale in day_sales:
+                    product_code = sale['product__vendor_code']
+                    if product_code not in results:
+                        results[product_code] = {date.strftime('%Y-%m-%d'): 0 for date in date_range}
+                    results[product_code][date.strftime('%Y-%m-%d')] = sale['total_sales']
         if sort.isnumeric():  
             sort = 0 if sort =="-1" else 1      
             results = dict(sorted(results.items(), key=lambda item: sum(item[1].values()), reverse=bool(int(sort))))
-        return results
+        paginator = Paginator(list(results.items()),page_size)
+        page = paginator.get_page(page)
+        return page
 
 
     def get_product_count(self, obj):
@@ -330,59 +306,70 @@ class CompanyStocksSerializer(serializers.Serializer):
         fields = ["id", "data", 'product_count']
 
     def get_data(self, obj):
-        page = self.context.get('request').query_params.get('page', None)
-        page_size = self.context.get('request').query_params.get('page_size', None)
-        date_from = self.context.get('request').query_params.get('date_from', None)
-        date_to = self.context.get('request').query_params.get('date_to', None)
-        service = self.context.get('request').query_params.get('service', "")
-        vendor_code = self.context.get('request').query_params.get('article', "")
+        request = self.context.get('request')
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        date_from = request.query_params.get('date_from', None)
+        date_to = request.query_params.get('date_to', None)
+        service = request.query_params.get('service', "")
+        vendor_code = request.query_params.get('article', "")
         sort = self.context.get('request').query_params.get('sort', "")
-        page = int(page) if page else 1
-        page_size = int(page_size) if page_size else 10
-        
-        date_from = datetime.datetime.strptime(date_from,'%Y-%m-%d').date() if date_from else datetime.datetime.now() - datetime.timedelta(days=6)
-        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.datetime.now() 
- 
-        products = ProductStock.objects.filter(company=obj, marketplace_type__contains=service,date__gte=date_from,date__lte=date_to,product__vendor_code__contains=vendor_code).order_by(f'{["-" if sort == "Z-A" else ""][0]}product__vendor_code').distinct('product__vendor_code')
 
-        products = products[(page - 1) * page_size: page * page_size]
+        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.now().date() - datetime.timedelta(days=6)
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.now().date()
+
+        filters = {
+            'company': obj,
+            'date__gte': date_from,
+            'date__lte': date_to
+        }
+        if service:
+            filters['marketplace_type__icontains'] = service
+        if vendor_code:
+            filters['product__vendor_code__icontains'] = vendor_code
+        ordering_by_alphabit = "-" if sort =="Z-A" else ""
+        queryset = ProductStock.objects.filter(**filters).select_related('warehouse').order_by(f"{ordering_by_alphabit}product__vendor_code")
+        
+        date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
         results = {}
-        
-        for product_stock in products:
-            
-            product = product_stock.product
-            vendor_code = product_stock.product.vendor_code
 
-            if (date_to - date_from).days == 0:
-                regions = [(warehouse.warehouse.name,warehouse.quantity) for warehouse in products]
-                results[vendor_code] = {datee: quantity for datee, quantity in regions}
+        if (date_from - date_to).days == 0:
+            date_range = queryset.values_list("warehouse", flat=True)
+            date_range = WarehouseForStock.objects.filter(id__in=set(date_range))
+            for warehouse in date_range:
+                date=date_from
+                day_sales = queryset.filter(date=date, warehouse=warehouse).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
+                if not day_sales:
+
+                    last_available_date = queryset.filter(date__lt=date, warehouse=warehouse).aggregate(last_date=Max('date'))['last_date']
+                    if last_available_date:
+                        day_sales = queryset.filter(date=last_available_date, warehouse=warehouse).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
                 
-            else:
-                date_range = [(date_from + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range((date_to - date_from).days + 1)]
-                dc = {}
+                for sale in day_sales:
+                    product_code = sale['product__vendor_code']
+                    if product_code not in results:
+                        results[product_code] = {warehouse.name: 0 for warehouse in date_range}
+                    results[product_code][warehouse.name] = sale['total_sales']
+        else:
+            for date in date_range:
+                day_sales = queryset.filter(date=date).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
+                if not day_sales:
+                    # Get the most recent data before the specified date if no data exists for this day
+                    last_available_date = queryset.filter(date__lt=date).aggregate(last_date=Max('date'))['last_date']
+                    if last_available_date:
+                        day_sales = queryset.filter(date=last_available_date).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
                 
-                for datee in date_range:
-                    date_1 = datetime.datetime.strptime(datee,"%Y-%m-%d")
-                    product_stock = ProductStock.objects.filter(date=datee, company=obj, product=product, marketplace_type__contains=service)
-                   
-                    if product_stock.exists():
-                        quentity = product_stock.aggregate(total=Sum('quantity')).get('total',0)
-                       
-                    else:
-                        product_stock = ProductStock.objects.filter(date__lte=date_1, company=obj, product=product, marketplace_type__contains=service)
-                        if product_stock.exists():
-                            
-                            date_ = product_stock.latest("date").date
-                            product_stock = ProductStock.objects.filter(date=date_, company=obj, product=product, marketplace_type__contains=service)
-                            quentity = product_stock.aggregate(total=Sum('quantity')).get('total',0)
-                        else:
-                            quentity = 0
-                    dc[datee] = quentity
-                results[vendor_code] = dc
+                for sale in day_sales:
+                    product_code = sale['product__vendor_code']
+                    if product_code not in results:
+                        results[product_code] = {day.strftime('%Y-%m-%d'): 0 for day in date_range}
+                    results[product_code][date.strftime('%Y-%m-%d')] = sale['total_sales']
         if sort.isnumeric():  
-            sort = 0 if sort =="-1" else 1     
+            sort = 0 if sort =="-1" else 1      
             results = dict(sorted(results.items(), key=lambda item: sum(item[1].values()), reverse=bool(int(sort))))
-        return results
+        paginator = Paginator(list(results.items()), page_size)
+        page_obj = paginator.get_page(page)
+        return page_obj
 
     def get_product_count(self, obj):
         date_from = self.context.get('request').query_params.get('date_from', None)
@@ -405,3 +392,4 @@ class CompanyStocksSerializer(serializers.Serializer):
 class RecomendSerializer(serializers.Serializer):
 
     pass
+
