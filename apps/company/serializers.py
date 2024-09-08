@@ -315,8 +315,8 @@ class CompanyStocksSerializer(serializers.Serializer):
         vendor_code = request.query_params.get('article', "")
         sort = self.context.get('request').query_params.get('sort', "")
 
-        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.now().date() - datetime.timedelta(days=6)
-        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.now().date()
+        date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.datetime.now().date() - datetime.timedelta(days=6)
+        date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.datetime.now().date()
 
         filters = {
             'company': obj,
