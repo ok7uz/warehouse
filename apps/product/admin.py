@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock
+from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock, \
+      Recommendations, InProduction
 from django.db.models import Count
 
 @admin.register(Product)
@@ -58,6 +59,22 @@ class WareHouseAdminView(admin.ModelAdmin):
 class WareHouseForStockAdminView(admin.ModelAdmin):
     search_fields=["name"]
     list_filter = ["marketplace_type"]
+    
+@admin.register(Recommendations)
+class RecommendationsAdminView(admin.ModelAdmin):
+    list_display =["vendor_code", "id", "quantity", "days_left", "succes_quantity"]
+    search_filter = ["product__vendor_code"]
+
+    def vendor_code(self, recommandations: Recommendations):
+        return recommandations.product.vendor_code
+    
+@admin.register(InProduction)
+class InProductionAdminView(admin.ModelAdmin):
+    list_display =["vendor_code", "id", "manufacture", "produced"]
+    search_filter = ["product__vendor_code"]
+
+    def vendor_code(self, recommandations: Recommendations):
+        return recommandations.product.vendor_code
     
 
 

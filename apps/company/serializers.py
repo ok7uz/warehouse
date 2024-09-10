@@ -7,7 +7,8 @@ from rest_framework import serializers
 from apps.accounts.models import CustomUser
 from apps.company.models import Company
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
-from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock
+from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
+        InProduction
 from django.core.paginator import Paginator
 
 
@@ -389,7 +390,52 @@ class CompanyStocksSerializer(serializers.Serializer):
             count = ProductStock.objects.filter(company=obj,date__gte=date_from, date__lte=date_to,product__vendor_code__contains=vendor_code).order_by("product_id").distinct('product_id').count()
         return count
     
-class RecomendSerializer(serializers.Serializer):
+class RecommendationsSerializer(serializers.Serializer):
+    id = serializers.UUIDField()   
+    product = serializers.SerializerMethodField()
+    quantity = serializers.IntegerField()
+    days_left = serializers.IntegerField()
+    succes_quantity = serializers.IntegerField()
 
-    pass
+    class Meta:
+        model = Recommendations
+        fields = ["id", "product","quantity", "days_left","succes_quantity"]
+
+    def get_product(self, instance):
+        return instance.product.vendor_code
+
+class InProductionSerializer(serializers.Serializer):
+    id = serializers.UUIDField()   
+    product = serializers.SerializerMethodField()
+    manufacture = serializers.IntegerField()
+    produced = serializers.IntegerField()
+    recommendations_ids = serializers.ListField(child=serializers.UUIDField())
+
+    class Meta:
+        model = InProduction
+        fields = ["id", "product","manufacture", "produced"]
+
+    def get_product(self, instance):
+        return instance.product.vendor_code
+    
+    def validate_recommendations_ids(self, value):
+        errors = []
+        for uuid in value:
+            if not Recommendations.objects.filter(id=uuid).exists():
+                errors.append(f" Not found is Recommendations with UUID : {uuid}")
+        if errors:
+            raise serializers.ValidationError(errors)
+        return value
+    
+    def create(self, validated_data):
+        
+        ls = []
+        recommendations = Recommendations.objects.filter(id__in=validated_data["recommendations_ids"])
+        for rec in recommendations:
+            company = rec.company
+            product = rec.product
+            quantity = rec.quantity
+            ls.append(InProduction(company=company,product=product,manufacture=quantity,recommendations=rec))
+        in_production = InProduction.objects.bulk_create(ls)
+        return in_production
 

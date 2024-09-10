@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.core.paginator import Paginator
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from apps.product.tasks import *
@@ -8,8 +9,11 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 
 from apps.company.models import Company
+from apps.product.models import Recommendations, InProduction
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
-    CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer
+    CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
+    InProductionSerializer
+    
 
 COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
@@ -17,6 +21,13 @@ COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('date_from', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date from"),
     OpenApiParameter('date_to', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date to"),
     OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket']),
+    OpenApiParameter('sort', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Sorting",enum=['1', '-1',"A-Z","Z-A"]),
+    OpenApiParameter('article', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Search by article"),
+]
+
+COMPANY_WAREHOUSE_PARAMETRS = [
+    OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
+    OpenApiParameter('page_size', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page size"),
     OpenApiParameter('sort', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Sorting",enum=['1', '-1',"A-Z","Z-A"]),
     OpenApiParameter('article', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Search by article"),
 ]
@@ -126,9 +137,9 @@ class CompanyOrdersView(APIView):
     )
     def get(self, request, company_id):
         
-        # update_wildberries_orders.delay()
+        update_wildberries_orders.delay()
         update_ozon_orders.delay()
-        # update_yandex_market_orders.delay()
+        update_yandex_market_orders.delay()
         
         company = get_object_or_404(Company,id=company_id)
         serializer = CompanyOrdersSerializer(company, context={'request': request})
@@ -151,3 +162,84 @@ class CompanyStocksView(APIView):
         company = get_object_or_404(Company,id=company_id)
         serializer = CompanyStocksSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class RecommendationsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description='Get all company recommandations',
+        tags=['Recomamandations'],
+        responses={200: RecommendationsSerializer(many=True)},
+        parameters=COMPANY_WAREHOUSE_PARAMETRS
+    )
+    def get(self, request, company_id):
+        update_wildberries_stocks.delay()
+        update_ozon_stocks.delay()
+        update_yandex_stocks.delay()
+        
+        company = get_object_or_404(Company,id=company_id)
+        sort = request.query_params.get("sort","")
+        article = request.query_params.get("article","")
+        page_size = int(request.query_params.get("page_size",100))
+        page = int(request.query_params.get("page",1))
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            recommendations = Recommendations.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code")
+        elif sort and sort in ["-1", "1"]:
+            ordering_by_quantity = "-" if sort =="-1" else ""
+            recommendations = Recommendations.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}quantity")
+        else:
+            recommendations = Recommendations.objects.filter(company=company, product__vendor_code__contains=article)
+        
+        serializer = RecommendationsSerializer(recommendations,many=True)
+        paginator = Paginator(serializer.data, per_page=page_size)
+        page = paginator.get_page(page)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class InProductionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description='Get all company inproductions (В производстве)',
+        tags=['Warehouse'],
+        responses={200: InProductionSerializer(many=True)},
+        parameters=COMPANY_WAREHOUSE_PARAMETRS
+    )
+    def get(self, request, company_id):
+        update_wildberries_stocks.delay()
+        update_ozon_stocks.delay()
+        update_yandex_stocks.delay()
+        
+        company = get_object_or_404(Company,id=company_id)
+        sort = request.query_params.get("sort","")
+        article = request.query_params.get("article","")
+        page_size = int(request.query_params.get("page_size",100))
+        page = int(request.query_params.get("page",1))
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code")
+        elif sort and sort in ["-1", "1"]:
+            ordering_by_quantity = "-" if sort =="-1" else ""
+            in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}quantity")
+        else:
+            in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article)
+        
+        serializer = InProductionSerializer(in_production,many=True)
+        paginator = Paginator(serializer.data, per_page=page_size)
+        page = paginator.get_page(page)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        description='Create company inproductions (В производстве) via recomendations ids',
+        tags=['Warehouse'],
+        responses={200: InProductionSerializer(many=True)},)
+    def post(self,request: Request, company_id):
+        data = request.data
+        serializer = InProductionSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

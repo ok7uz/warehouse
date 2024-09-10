@@ -1,5 +1,9 @@
+from typing import Iterable
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import uuid
 
 from apps.company.models import Company
 
@@ -117,15 +121,36 @@ class ProductStock(models.Model):
         
         unique_together = ('product', 'company', 'date', 'warehouse', 'marketplace_type')
 
-class WarehouseForCompany(models.Model):
+class Recommendations(models.Model):
     
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     product = models.ForeignKey(Product,on_delete=models.CASCADE)
-    shelf = models.CharField(max_length=20)
-    stock = models.PositiveIntegerField(default=0)
+    quantity = models.PositiveIntegerField()
+    succes_quantity = models.PositiveIntegerField(default=0)
+    days_left = models.IntegerField()
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
-    class Meta:
-        db_table = "warehouse_for_company"
-        verbose_name = "Склад"
-        ordering = ["stock"]
+    def save(self, *args, **kwargs) -> None:
+        
+        if self.quantity == self.succes_quantity:
+            self.delete()
+            return
+        super().save(*args, **kwargs)
 
+    class Meta:
+        db_table = "recommendations"
+        verbose_name = "Рекомендации"
+        ordering = ["quantity"]
+
+class InProduction(models.Model):
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    manufacture = models.PositiveIntegerField()
+    produced = models.PositiveIntegerField(default=0)
+    company = models.ForeignKey(Company,on_delete=models.CASCADE)
+    recommendations = models.OneToOneField(Recommendations,on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return self.product.vendor_code
+    

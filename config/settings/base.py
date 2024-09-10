@@ -128,9 +128,11 @@ SPECTACULAR_SETTINGS = {
     'OAS_VERSION': '3.1.0',
     'COMPONENT_SPLIT_REQUEST': True,
     'CONTACT': {
-        'name': 'Komronbek Obloev',
-        'url': 'https://github.com/ok7uz',
-        'email': 'komronbekobloev@gmail.com',
+        'name': 'Anasxon Azamov',
+        'url': 'https://github.com/anasazamov',
+        'email': 'anasazamov55@gmail.com',
+        'phone_number': '+998990751735',
+        'telegram': 't.me/anasxon_azamov',
     },
     'SWAGGER_UI_SETTINGS': {
         'defaultModelRendering': 'model',
@@ -187,8 +189,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.product.tasks.update_yandex_market_orders',
         'schedule': crontab(minute='*/20'),
     },
-    'update_yandex_market_stocks': {
-        'task': 'apps.product.tasks.update_yandex_market_stocks',
+    'update_yandex_stocks': {
+        'task': 'apps.product.tasks.update_yandex_stocks',
         'schedule': crontab(minute='*/20'),
     },
 }
