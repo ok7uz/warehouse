@@ -12,7 +12,7 @@ from apps.company.models import Company
 from apps.product.models import Recommendations, InProduction
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
-    InProductionSerializer
+    InProductionSerializer, InProductionUpdateSerializer
     
 
 COMPANY_SALES_PARAMETRS = [
@@ -249,4 +249,23 @@ class InProductionView(APIView):
             serializer = InProductionSerializer(in_productions,many=True)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateInProductionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @extend_schema(
+        description='Update InProduction by id',
+        tags=['Warehouse'],
+        responses={200: InProductionSerializer()},
+        request=InProductionUpdateSerializer
+    )
+    def patch(self, request, in_production_id):
+        
+        data = request.data
+        in_production = get_object_or_404(InProduction,id=in_production_id)
+        serializer = InProductionUpdateSerializer(in_production,data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 

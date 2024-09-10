@@ -451,3 +451,18 @@ class InProductionSerializer(serializers.Serializer):
             raise serializers.ValidationError(errors)
         return in_production
 
+class InProductionUpdateSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(required=False)   
+    product = serializers.SerializerMethodField(required=False)
+    manufacture = serializers.IntegerField(required=False)
+    produced = serializers.IntegerField()
+
+    class Meta:
+        model = InProduction
+        fields = "__all__"
+
+    def get_product(self, instance):
+        return instance.product.vendor_code
+    
+
+
