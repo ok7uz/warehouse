@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.core.paginator import Paginator
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter, OpenApiExample
 from apps.product.tasks import *
 from rest_framework import status, permissions
 from rest_framework.response import Response
@@ -173,9 +173,6 @@ class RecommendationsView(APIView):
         parameters=COMPANY_WAREHOUSE_PARAMETRS
     )
     def get(self, request, company_id):
-        update_wildberries_stocks.delay()
-        update_ozon_stocks.delay()
-        update_yandex_stocks.delay()
         
         company = get_object_or_404(Company,id=company_id)
         sort = request.query_params.get("sort","")
@@ -207,9 +204,6 @@ class InProductionView(APIView):
         parameters=COMPANY_WAREHOUSE_PARAMETRS
     )
     def get(self, request, company_id):
-        update_wildberries_stocks.delay()
-        update_ozon_stocks.delay()
-        update_yandex_stocks.delay()
         
         company = get_object_or_404(Company,id=company_id)
         sort = request.query_params.get("sort","")
@@ -234,12 +228,25 @@ class InProductionView(APIView):
     @extend_schema(
         description='Create company inproductions (В производстве) via recomendations ids',
         tags=['Warehouse'],
-        responses={200: InProductionSerializer(many=True)},)
+        responses={200: InProductionSerializer(many=True)},
+        request=InProductionSerializer,
+        examples=[
+        OpenApiExample(
+            'Example 1',
+            summary='Simple example',
+            description='This is a simple example of input.',
+            value={
+                "recommendations_ids": ["uuid1", "uuid2"]
+            },
+            request_only=True,  # Only applicable for request bodies
+        ),
+    ])
     def post(self,request: Request, company_id):
         data = request.data
         serializer = InProductionSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            in_productions = serializer.save()
+            serializer = InProductionSerializer(in_productions,many=True)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

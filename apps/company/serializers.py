@@ -405,15 +405,24 @@ class RecommendationsSerializer(serializers.Serializer):
         return instance.product.vendor_code
 
 class InProductionSerializer(serializers.Serializer):
-    id = serializers.UUIDField()   
-    product = serializers.SerializerMethodField()
-    manufacture = serializers.IntegerField()
-    produced = serializers.IntegerField()
-    recommendations_ids = serializers.ListField(child=serializers.UUIDField())
+    
+    id = serializers.UUIDField(required=False)   
+    product = serializers.SerializerMethodField(required=False)
+    manufacture = serializers.IntegerField(required=False)
+    produced = serializers.IntegerField(required=False)
+    recommendations_ids = serializers.ListField(child=serializers.UUIDField(), write_only=True)
 
     class Meta:
         model = InProduction
         fields = ["id", "product","manufacture", "produced"]
+
+    def to_representation(self, instance):
+        """
+        Object instance -> Dict of primitive datatypes.
+        """
+        ret = super().to_representation(instance)  # Call the super method to get the default serialization
+        ret.pop('recommendations_ids', None)  # Remove recommendations_ids from the response
+        return ret
 
     def get_product(self, instance):
         return instance.product.vendor_code
@@ -436,6 +445,9 @@ class InProductionSerializer(serializers.Serializer):
             product = rec.product
             quantity = rec.quantity
             ls.append(InProduction(company=company,product=product,manufacture=quantity,recommendations=rec))
-        in_production = InProduction.objects.bulk_create(ls)
+        try:
+            in_production = InProduction.objects.bulk_create(ls,ignore_conflicts=True)
+        except Exception as errors:
+            raise serializers.ValidationError(errors)
         return in_production
 
