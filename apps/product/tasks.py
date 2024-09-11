@@ -179,7 +179,7 @@ def get_paid_orders(url, headers, date_from, status="delivered",status_2="paid")
 def update_ozon_sales():
     
     FBO_URL = "https://api-seller.ozon.ru/v2/posting/fbo/list"
-    # FBS_URL = "https://api-seller.ozon.ru/v2/posting/fbs/list"
+    FBS_URL = "https://api-seller.ozon.ru/v2/posting/fbs/list"
     
     for ozon in Ozon.objects.all():
         company = ozon.company
@@ -201,8 +201,8 @@ def update_ozon_sales():
         while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') <= datetime.now():
             count1 = ProductSale.objects.filter(marketplace_type="ozon").count()
             fbo_orders = get_paid_orders(FBO_URL,headers,date_from)
-            # fbs_orders = get_paid_orders(FBS_URL,headers,date_from)
-            results = fbo_orders #+ fbs_orders
+            fbs_orders = get_paid_orders(FBS_URL,headers,date_from)
+            results = fbo_orders + fbs_orders
 
             for item in results:
                 try:
@@ -250,7 +250,7 @@ def update_ozon_sales():
 def update_ozon_orders():
     
     FBO_URL = "https://api-seller.ozon.ru/v2/posting/fbo/list"
-    # FBS_URL = "https://api-seller.ozon.ru/v2/posting/fbs/list"
+    FBS_URL = "https://api-seller.ozon.ru/v2/posting/fbs/list"
     try:
         date_from = ProductOrder.objects.filter(marketplace_type="ozon").latest('date').date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
     except:
@@ -270,9 +270,9 @@ def update_ozon_orders():
         while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') <= datetime.now():
 
             fbo_orders = get_paid_orders(FBO_URL,headers,date_from,"awaiting_packaging","")
-            # fbs_orders = get_paid_orders(FBS_URL,headers,date_from, "awaiting_deliver","")
+            fbs_orders = get_paid_orders(FBS_URL,headers,date_from, "awaiting_deliver","")
             
-            results = fbo_orders #+ fbs_orders 
+            results = fbo_orders + fbs_orders 
 
             for item in results:
                 

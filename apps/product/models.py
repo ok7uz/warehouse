@@ -154,3 +154,18 @@ class InProduction(models.Model):
     def __str__(self) -> str:
         return self.product.vendor_code
     
+class Shelf(models.Model):
+    id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False, unique=True)
+    shelf_name = models.CharField(max_length=50)
+    stock = models.PositiveIntegerField()
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return self.shelf_name
+
+class SortingWarehouse(models.Model):
+    prodcut = models.ForeignKey(Product, on_delete=models.CASCADE)
+    unsorted = models.PositiveIntegerField()
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+
+    

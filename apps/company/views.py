@@ -7,6 +7,7 @@ from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.views import APIView
+from rest_framework.generics import UpdateAPIView
 
 from apps.company.models import Company
 from apps.product.models import Recommendations, InProduction
@@ -199,7 +200,7 @@ class InProductionView(APIView):
 
     @extend_schema(
         description='Get all company inproductions (В производстве)',
-        tags=['Warehouse'],
+        tags=["In Productions"],
         responses={200: InProductionSerializer(many=True)},
         parameters=COMPANY_WAREHOUSE_PARAMETRS
     )
@@ -227,7 +228,7 @@ class InProductionView(APIView):
     
     @extend_schema(
         description='Create company inproductions (В производстве) via recomendations ids',
-        tags=['Warehouse'],
+        tags=["In Productions"],
         responses={200: InProductionSerializer(many=True)},
         request=InProductionSerializer,
         examples=[
@@ -255,17 +256,80 @@ class UpdateInProductionView(APIView):
     
     @extend_schema(
         description='Update InProduction by id',
-        tags=['Warehouse'],
+        tags=["In Productions"],
         responses={200: InProductionSerializer()},
-        request=InProductionUpdateSerializer
+        request=InProductionUpdateSerializer,
+        examples=[
+        OpenApiExample(
+            'Example 1',
+            summary='Simple example',
+            description='This is a simple example of input.',
+            value={
+                "produced": 1
+            },
+            request_only=True,  # Only applicable for request bodies
+        ),
+    ]
     )
-    def patch(self, request, in_production_id):
+    def put(self, request, inproduction_id):
         
-        data = request.data
-        in_production = get_object_or_404(InProduction,id=in_production_id)
-        serializer = InProductionUpdateSerializer(in_production,data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        in_production = get_object_or_404(InProduction,id=inproduction_id)
+        produced = request.data.get("produced",in_production.produced)
+        in_production.produced = produced
+        in_production.save()
+        serializer = InProductionUpdateSerializer(in_production)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    @extend_schema(
+        description='Add produced from InProduction',
+        tags=["In Productions"],
+        responses={200: InProductionSerializer()},
+        request=InProductionUpdateSerializer,
+        examples=[
+        OpenApiExample(
+            'Example 1',
+            summary='Simple example',
+            description='This is a simple example of input.',
+            value={
+                "produced": 1
+            },
+            request_only=True,  # Only applicable for request bodies
+        ),
+    ]
+    )
+    def patch(self, request, inproduction_id):
+        
+        in_production = get_object_or_404(InProduction,id=inproduction_id)
+        produced = request.data.get("produced",0)
+        in_production.product += produced
+        in_production.save()
+        serializer = InProductionUpdateSerializer(in_production)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    @extend_schema(
+        description='delete InProduction',
+        tags=["In Productions"],
+        responses={200: {"message": ""}},
+        request=InProductionUpdateSerializer,
+        examples=[
+        OpenApiExample(
+            'Example 1',
+            summary='Simple example',
+            description='This is a simple example of input.',
+            value={
+                "produced": 1
+            },
+            request_only=True,  # Only applicable for request bodies
+        ),
+    ]
+    )
+    def patch(self, request, inproduction_id):
+        
+        in_production = get_object_or_404(InProduction,id=inproduction_id)
+        produced = request.data.get("produced",0)
+        in_production.product += produced
+        in_production.save()
+        serializer = InProductionUpdateSerializer(in_production)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
 

@@ -9,6 +9,6 @@ urlpatterns = [
     path('companies/<uuid:company_id>/stocks/', CompanyStocksView.as_view(), name='company-stocks'),
     path('companies/<uuid:company_id>/recomend/', RecommendationsView.as_view(), name='company-recomend'),
     path('companies/<uuid:company_id>/prodcution/', InProductionView.as_view(), name='company-inproductions'), 
-    path('companies/<uuid:inproduction_id>/prodcution/', UpdateInProductionView.as_view(), name='company-update-inproductions'), 
+    path('companies/<uuid:inproduction_id>/update-prodcution/', UpdateInProductionView.as_view(), name='company-update-inproductions'), 
     path('companies/<uuid:uuid>/', CompanyDetailView.as_view(), name='company-update'),
 ]

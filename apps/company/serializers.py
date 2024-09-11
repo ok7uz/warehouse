@@ -11,7 +11,6 @@ from apps.product.models import ProductStock, ProductSale, ProductOrder, Warehou
         InProduction
 from django.core.paginator import Paginator
 
-
 class CompanySerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -132,7 +131,6 @@ class CompaniesSerializers(serializers.ModelSerializer):
     def get_yandex_market(self, obj):
         data_list = YandexMarket.obj.yandex_market_info_query(obj)
         return data_list
-
 
 class CompanySalesSerializer(serializers.ModelSerializer):
     data = serializers.SerializerMethodField(read_only=True)
@@ -459,10 +457,8 @@ class InProductionUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InProduction
-        fields = "__all__"
+        fields = ["id", "product","manufacture", "produced"]
 
     def get_product(self, instance):
         return instance.product.vendor_code
     
-
-
