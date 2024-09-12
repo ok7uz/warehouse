@@ -7,13 +7,12 @@ from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.views import APIView
-from rest_framework.generics import UpdateAPIView
 
 from apps.company.models import Company
 from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarhouseHistory
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
-    InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer
+    InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer
     
 
 COMPANY_SALES_PARAMETRS = [
@@ -359,6 +358,44 @@ class SortingWarehouseView(APIView):
             sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article)
         
         serializer = SortingWarehouseSerializer(sorting_warehouse,many=True)
+        paginator = Paginator(serializer.data, per_page=page_size)
+        page = paginator.get_page(page)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class WarehouseHistoryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description="Get all company",
+        tags=['Warehouse History (Склад ГП)'],
+        responses={200: WarehouseHistorySerializer(many=True)},
+        parameters=COMPANY_WAREHOUSE_PARAMETRS + [OpenApiParameter('date_from', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date from"), (OpenApiParameter('date_to', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date to"))]
+    )
+    def get(self, request: Request, company_id):
+        
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        article = request.query_params.get("article","")
+        date_from = request.query_params.get('date_from', None)
+        date_to = request.query_params.get('date_to', None)
+        sort = request.query_params.get('sort', "")
+        
+        date_from = datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.now().date() - timedelta(days=6)
+        date_to = datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.now().date()
+
+        company = get_object_or_404(Company,id=company_id)
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            sorting_warehouse = WarhouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
+        elif sort and sort in ["-1", "1"]:
+            ordering_by_quantity = "-" if sort =="-1" else ""
+            sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_quantity}unsorted").distinct("product")
+        else:
+            sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).distinct("product")
+        context = {"date_from": date_from, "date_to": date_to}
+        serializer = CompanySalesSerializer(company, context={'dates': context})
+        
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
         return Response(serializer.data, status=status.HTTP_200_OK)

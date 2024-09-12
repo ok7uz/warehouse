@@ -472,3 +472,27 @@ class SortingWarehouseSerializer(serializers.ModelSerializer):
     
     def get_product(self, obj):
         return obj.product.vendor_code
+    
+class WarehouseHistorySerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    data = serializers.SerializerMethodField()
+    class Meta:
+        model = WarhouseHistory
+        fields = ["product","data"]
+
+    def get_product(self,obj):
+        return obj.product.vendor_code
+    
+    def get_data(self, obj):
+        
+        dates = self.context.get("dates")
+        date_from = dates.get("date_from")
+        date_to = dates.get("date_from")
+        date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
+        dc = {date.strftime("%Y-%m-%d"): 0 for date in date_range}
+
+        for date in date_range:
+            dc[date.strftime("%Y-%m-%d")] = SortingWarehouse.objects.filter(product=obj.product, date=date, company=obj.company).annotate(total=Sum("stock")).get("total",0)
+        
+        return dc
+

@@ -171,6 +171,11 @@ class SortingWarehouse(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
 class WarhouseHistory(models.Model):
+    
     date = models.DateField(auto_now_add=True)
     stock = models.PositiveBigIntegerField(default=0)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return self.product.vendor_code
