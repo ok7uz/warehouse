@@ -337,7 +337,7 @@ class SortingWarehouseView(APIView):
 
     @extend_schema(
         description='Get all Sorting warehouse (В производстве)',
-        tags=["In Productions"],
+        tags=["Sorting Warehouse (Склад сортировки)"],
         responses={200: InProductionSerializer(many=True)},
         parameters=COMPANY_WAREHOUSE_PARAMETRS
     )
