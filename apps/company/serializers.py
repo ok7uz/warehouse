@@ -8,7 +8,7 @@ from apps.accounts.models import CustomUser
 from apps.company.models import Company
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
-        InProduction
+        InProduction, SortingWarehouse, Shelf, WarhouseHistory
 from django.core.paginator import Paginator
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -462,3 +462,13 @@ class InProductionUpdateSerializer(serializers.ModelSerializer):
     def get_product(self, instance):
         return instance.product.vendor_code
     
+class SortingWarehouseSerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    unsorted = serializers.IntegerField()
+
+    class Meta:
+        model = SortingWarehouse
+        fields = ['id', 'product', 'unsorted']
+    
+    def get_product(self, obj):
+        return obj.product.vendor_code

@@ -10,10 +10,10 @@ from rest_framework.views import APIView
 from rest_framework.generics import UpdateAPIView
 
 from apps.company.models import Company
-from apps.product.models import Recommendations, InProduction
+from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarhouseHistory
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
-    InProductionSerializer, InProductionUpdateSerializer
+    InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer
     
 
 COMPANY_SALES_PARAMETRS = [
@@ -200,7 +200,7 @@ class InProductionView(APIView):
 
     @extend_schema(
         description='Get all company inproductions (В производстве)',
-        tags=["In Productions"],
+        tags=["In Productions (В производстве)"],
         responses={200: InProductionSerializer(many=True)},
         parameters=COMPANY_WAREHOUSE_PARAMETRS
     )
@@ -228,7 +228,7 @@ class InProductionView(APIView):
     
     @extend_schema(
         description='Create company inproductions (В производстве) via recomendations ids',
-        tags=["In Productions"],
+        tags=["In Productions (В производстве)"],
         responses={200: InProductionSerializer(many=True)},
         request=InProductionSerializer,
         examples=[
@@ -256,7 +256,7 @@ class UpdateInProductionView(APIView):
     
     @extend_schema(
         description='Update InProduction by id',
-        tags=["In Productions"],
+        tags=["In Productions (В производстве)"],
         responses={200: InProductionSerializer()},
         request=InProductionUpdateSerializer,
         examples=[
@@ -282,7 +282,7 @@ class UpdateInProductionView(APIView):
         
     @extend_schema(
         description='Add produced from InProduction',
-        tags=["In Productions"],
+        tags=["In Productions (В производстве)"],
         responses={200: InProductionSerializer()},
         request=InProductionUpdateSerializer,
         examples=[
@@ -308,7 +308,7 @@ class UpdateInProductionView(APIView):
         
     @extend_schema(
         description='delete InProduction',
-        tags=["In Productions"],
+        tags=["In Productions (В производстве)"],
         responses={200: {"message": ""}},
         request=InProductionUpdateSerializer,
         examples=[
@@ -332,4 +332,33 @@ class UpdateInProductionView(APIView):
         serializer = InProductionUpdateSerializer(in_production)
         return Response(serializer.data, status=status.HTTP_200_OK)
         
+class SortingWarehouseView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        description='Get all Sorting warehouse (В производстве)',
+        tags=["In Productions"],
+        responses={200: InProductionSerializer(many=True)},
+        parameters=COMPANY_WAREHOUSE_PARAMETRS
+    )
+    def get(self, request, company_id):
+        
+        company = get_object_or_404(Company,id=company_id)
+        sort = request.query_params.get("sort","")
+        article = request.query_params.get("article","")
+        page_size = int(request.query_params.get("page_size",100))
+        page = int(request.query_params.get("page",1))
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code")
+        elif sort and sort in ["-1", "1"]:
+            ordering_by_quantity = "-" if sort =="-1" else ""
+            sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}unsorted")
+        else:
+            sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article)
+        
+        serializer = SortingWarehouseSerializer(sorting_warehouse,many=True)
+        paginator = Paginator(serializer.data, per_page=page_size)
+        page = paginator.get_page(page)
+        return Response(serializer.data, status=status.HTTP_200_OK)

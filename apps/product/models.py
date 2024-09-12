@@ -155,8 +155,10 @@ class InProduction(models.Model):
         return self.product.vendor_code
     
 class Shelf(models.Model):
+    
     id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False, unique=True)
     shelf_name = models.CharField(max_length=50)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
     stock = models.PositiveIntegerField()
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
@@ -164,8 +166,11 @@ class Shelf(models.Model):
         return self.shelf_name
 
 class SortingWarehouse(models.Model):
-    prodcut = models.ForeignKey(Product, on_delete=models.CASCADE)
-    unsorted = models.PositiveIntegerField()
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    unsorted = models.PositiveIntegerField(default=0)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
-    
+class WarhouseHistory(models.Model):
+    date = models.DateField(auto_now_add=True)
+    stock = models.PositiveBigIntegerField(default=0)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
