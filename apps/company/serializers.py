@@ -8,7 +8,7 @@ from apps.accounts.models import CustomUser
 from apps.company.models import Company
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
-        InProduction, SortingWarehouse, Shelf, WarhouseHistory
+        InProduction, SortingWarehouse, Shelf, WarhouseHistory, Product
 from django.core.paginator import Paginator
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -465,13 +465,24 @@ class InProductionUpdateSerializer(serializers.ModelSerializer):
 class SortingWarehouseSerializer(serializers.ModelSerializer):
     product = serializers.SerializerMethodField()
     unsorted = serializers.IntegerField()
+    shelf = serializers.SerializerMethodField()
 
     class Meta:
         model = SortingWarehouse
-        fields = ['id', 'product', 'unsorted']
+        fields = ['id', 'product', 'unsorted', 'shelf']
     
-    def get_product(self, obj):
+    def get_product(self, obj: SortingWarehouse):
         return obj.product.vendor_code
+    
+    def get_shelf(self, obj):
+        shelfs = Shelf.objects.filter(product=obj.product)
+        dc = []
+        for shelf in shelfs:
+            pk = shelf.pk
+            name = shelf.shelf_name
+            stock = shelf.stock
+            dc.append({"id": pk,"shelf_name":name,"stock": stock})
+        return dc
     
 class WarehouseHistorySerializer(serializers.ModelSerializer):
     product = serializers.SerializerMethodField()
@@ -500,3 +511,75 @@ class WarehouseHistorySerializer(serializers.ModelSerializer):
         
         return dc
 
+class ValidateDict(serializers.Serializer):
+    sorting_warehouse_id = serializers.IntegerField()
+    stock = serializers.IntegerField()
+
+    def validate(self, attrs):
+        if not ("sorting_warehouse_id" in attrs.keys() and "stock" in attrs.keys()):
+                raise serializers.ValidationError("must be sorting_warehouse_id and stock")
+        return attrs
+
+class SortingToWarehouseSeriallizer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SortingWarehouse
+        fields = ['sorting_warehouse_id', 'stock', 'shelf_name']
+    
+    sorting_warehouse_id = serializers.IntegerField()
+    stock = serializers.IntegerField()
+    shelf_name = serializers.CharField()
+    
+    def validate(self, data):
+
+        sorting_warehouse_id = data.get('sorting_warehouse_id')
+        stock = data.get('stock')
+
+        if not SortingWarehouse.objects.filter(id=sorting_warehouse_id).exists():
+            raise serializers.ValidationError(f"Not found SortingWarehouse with ID: {sorting_warehouse_id}")
+
+        warehouse = SortingWarehouse.objects.get(id=sorting_warehouse_id)
+        if warehouse.unsorted < stock:
+            raise serializers.ValidationError("The unsorted stock quantity in the warehouse must be greater than or equal to the stock quantity you want to allocate.")
+
+        return data
+
+    
+    def create(self, validated_data):
+        
+        data = validated_data
+        sorting_warehouse_id = data['sorting_warehouse_id']
+        stock = data['stock']
+        shelf_name = validated_data['shelf_name']
+        sorting_warehouse = SortingWarehouse.objects.get(id=sorting_warehouse_id)
+        company = sorting_warehouse.company
+        product = sorting_warehouse.product
+        sorting_warehouse.unsorted -= stock
+        sorting_warehouse.save()
+
+        Shelf.objects.create(shelf_name=shelf_name,product=product,company=company,stock=stock)
+
+        return sorting_warehouse
+
+class ShelfUpdateSerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    shelf_name = serializers.CharField()
+    stock = serializers.IntegerField()
+
+    class Meta:
+        model = Shelf
+        fields = ['product','shelf_name','stock']
+
+    def update(self, instance: Shelf, validated_data):
+        try:
+            product = Product.objects.get(vendor_code=validated_data['product'])
+        except:
+            product = instance.product
+        shelf_name = validated_data.get("shelf_name",instance.shelf_name)
+        stock = validated_data.get("stock", instance.stock)
+        updated = instance.update(shelf_name=shelf_name,product=product,stock=stock)
+
+        return updated
+    
+    def get_product(self,obj):
+        return obj.product.vendor_code

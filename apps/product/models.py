@@ -169,6 +169,7 @@ class SortingWarehouse(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     unsorted = models.PositiveIntegerField(default=0)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    
 
 class WarhouseHistory(models.Model):
     
@@ -176,6 +177,7 @@ class WarhouseHistory(models.Model):
     stock = models.PositiveBigIntegerField(default=0)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    shelf = models.ForeignKey(Shelf, on_delete=models.SET_NULL,null=True)
 
     def __str__(self) -> str:
         return self.product.vendor_code

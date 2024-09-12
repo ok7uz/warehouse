@@ -12,7 +12,8 @@ from apps.company.models import Company
 from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarhouseHistory
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
-    InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer
+    InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
+    SortingToWarehouseSeriallizer, ShelfUpdateSerializer
     
 
 COMPANY_SALES_PARAMETRS = [
@@ -31,7 +32,6 @@ COMPANY_WAREHOUSE_PARAMETRS = [
     OpenApiParameter('sort', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Sorting",enum=['1', '-1',"A-Z","Z-A"]),
     OpenApiParameter('article', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Search by article"),
 ]
-
 
 class CompanyListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -68,7 +68,6 @@ class CompanyListView(APIView):
         companies = Company.objects.filter(owner=request.user)
         serializer = CompaniesSerializers(companies, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 class CompanyDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -228,7 +227,7 @@ class InProductionView(APIView):
     @extend_schema(
         description='Create company inproductions (В производстве) via recomendations ids',
         tags=["In Productions (В производстве)"],
-        responses={200: InProductionSerializer(many=True)},
+        responses={201: InProductionSerializer(many=True)},
         request=InProductionSerializer,
         examples=[
         OpenApiExample(
@@ -304,33 +303,7 @@ class UpdateInProductionView(APIView):
         in_production.save()
         serializer = InProductionUpdateSerializer(in_production)
         return Response(serializer.data, status=status.HTTP_200_OK)
-        
-    @extend_schema(
-        description='delete InProduction',
-        tags=["In Productions (В производстве)"],
-        responses={200: {"message": ""}},
-        request=InProductionUpdateSerializer,
-        examples=[
-        OpenApiExample(
-            'Example 1',
-            summary='Simple example',
-            description='This is a simple example of input.',
-            value={
-                "produced": 1
-            },
-            request_only=True,  # Only applicable for request bodies
-        ),
-    ]
-    )
-    def patch(self, request, inproduction_id):
-        
-        in_production = get_object_or_404(InProduction,id=inproduction_id)
-        produced = request.data.get("produced",0)
-        in_production.product += produced
-        in_production.save()
-        serializer = InProductionUpdateSerializer(in_production)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-        
+             
 class SortingWarehouseView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -361,8 +334,24 @@ class SortingWarehouseView(APIView):
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
         return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        description='Sorting warehouse to Warehouse History',
+        tags=["Sorting Warehouse (Склад сортировки)"],
+        responses={201: SortingWarehouseSerializer()},
+        request=SortingToWarehouseSeriallizer,
+        )
+    def post(self,request: Request, company_id):
+        data = request.data
+        serializer = SortingToWarehouseSeriallizer(data=data)
+        if serializer.is_valid():
+            in_productions = serializer.save()
+            serializer = SortingWarehouseSerializer(in_productions)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class WarehouseHistoryView(APIView):
+
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
@@ -399,3 +388,21 @@ class WarehouseHistoryView(APIView):
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
         return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
+    
+class UpdateShelfView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @extend_schema(
+        description='Update shelf (Место)',
+        tags=["Update Shelf"],
+        responses={200: ShelfUpdateSerializer()},
+        request=ShelfUpdateSerializer,
+    )
+    def patch(self, request, shelf_id):
+        data = request.data
+        shelf = get_object_or_404(Shelf,id=shelf_id)
+        serializer = InProductionUpdateSerializer(shelf,data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
