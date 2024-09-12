@@ -487,12 +487,16 @@ class WarehouseHistorySerializer(serializers.ModelSerializer):
         
         dates = self.context.get("dates")
         date_from = dates.get("date_from")
-        date_to = dates.get("date_from")
+        date_to = dates.get("date_to")
         date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
         dc = {date.strftime("%Y-%m-%d"): 0 for date in date_range}
 
         for date in date_range:
-            dc[date.strftime("%Y-%m-%d")] = SortingWarehouse.objects.filter(product=obj.product, date=date, company=obj.company).annotate(total=Sum("stock")).get("total",0)
+            total = WarhouseHistory.objects.filter(product=obj.product, date=date, company=obj.company).aggregate(total=Sum("stock")).get("total",0)
+            if total:
+                dc[date.strftime("%Y-%m-%d")] = total
+            else:
+                dc[date.strftime("%Y-%m-%d")] = 0
         
         return dc
 

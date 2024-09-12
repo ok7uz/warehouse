@@ -192,7 +192,7 @@ class RecommendationsView(APIView):
         serializer = RecommendationsSerializer(recommendations,many=True)
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
 
 class InProductionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -223,7 +223,7 @@ class InProductionView(APIView):
         serializer = InProductionSerializer(in_production,many=True)
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
     
     @extend_schema(
         description='Create company inproductions (В производстве) via recomendations ids',
@@ -360,7 +360,7 @@ class SortingWarehouseView(APIView):
         serializer = SortingWarehouseSerializer(sorting_warehouse,many=True)
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
 
 class WarehouseHistoryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -381,7 +381,7 @@ class WarehouseHistoryView(APIView):
         sort = request.query_params.get('sort', "")
         
         date_from = datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.now().date() - timedelta(days=6)
-        date_to = datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else datetime.now().date()
+        date_to = datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else date_from + timedelta(days=6)
 
         company = get_object_or_404(Company,id=company_id)
         
@@ -390,12 +390,12 @@ class WarehouseHistoryView(APIView):
             sorting_warehouse = WarhouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
         elif sort and sort in ["-1", "1"]:
             ordering_by_quantity = "-" if sort =="-1" else ""
-            sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_quantity}unsorted").distinct("product")
+            sorting_warehouse = WarhouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_quantity}unsorted").distinct("product")
         else:
-            sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).distinct("product")
+            sorting_warehouse = WarhouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).distinct("product")
         context = {"date_from": date_from, "date_to": date_to}
-        serializer = CompanySalesSerializer(company, context={'dates': context})
+        serializer = WarehouseHistorySerializer(sorting_warehouse, context={'dates': context}, many=True)
         
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
