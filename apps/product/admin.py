@@ -62,7 +62,7 @@ class WareHouseForStockAdminView(admin.ModelAdmin):
     
 @admin.register(Recommendations)
 class RecommendationsAdminView(admin.ModelAdmin):
-    list_display =["vendor_code", "id", "quantity", "days_left", "succes_quantity"]
+    list_display =["vendor_code", "id", "quantity", "days_left", "application_for_production"]
     search_filter = ["product__vendor_code"]
 
     def vendor_code(self, recommandations: Recommendations):

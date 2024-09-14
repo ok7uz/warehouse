@@ -406,48 +406,36 @@ class InProductionSerializer(serializers.Serializer):
     
     id = serializers.UUIDField(required=False)   
     product = serializers.SerializerMethodField(required=False)
-    manufacture = serializers.IntegerField(required=False)
+    application_for_production = serializers.IntegerField()
     produced = serializers.IntegerField(required=False)
-    recommendations_ids = serializers.ListField(child=serializers.UUIDField(), write_only=True)
+    recommendations_id = serializers.UUIDField()
 
     class Meta:
         model = InProduction
         fields = ["id", "product","manufacture", "produced"]
 
-    def to_representation(self, instance):
-        """
-        Object instance -> Dict of primitive datatypes.
-        """
-        ret = super().to_representation(instance)  # Call the super method to get the default serialization
-        ret.pop('recommendations_ids', None)  # Remove recommendations_ids from the response
-        return ret
-
     def get_product(self, instance):
         return instance.product.vendor_code
     
-    def validate_recommendations_ids(self, value):
+    def validate_recommendations_id(self, value):
         errors = []
-        for uuid in value:
-            if not Recommendations.objects.filter(id=uuid).exists():
-                errors.append(f" Not found is Recommendations with UUID : {uuid}")
+        if not Recommendations.objects.filter(id=value).exists():
+            errors.append(f" Not found is Recommendations with UUID : {value}")
         if errors:
             raise serializers.ValidationError(errors)
         return value
     
     def create(self, validated_data):
+    
+        recommendations = Recommendations.objects.get(id=validated_data["recommendations_id"])
         
-        ls = []
-        recommendations = Recommendations.objects.filter(id__in=validated_data["recommendations_ids"])
-        for rec in recommendations:
-            company = rec.company
-            product = rec.product
-            quantity = rec.quantity
-            ls.append(InProduction(company=company,product=product,manufacture=quantity,recommendations=rec))
-        try:
-            in_production = InProduction.objects.bulk_create(ls,ignore_conflicts=True)
-        except Exception as errors:
-            raise serializers.ValidationError(errors)
-        return in_production
+        company = recommendations.company
+        product = recommendations.product
+        application_for_production = validated_data['application_for_production']
+        production = InProduction.objects.create(company=company,product=product, manufacture=application_for_production)
+        recommendations.application_for_production += application_for_production
+        recommendations.save()
+        return production
 
 class InProductionUpdateSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(required=False)   

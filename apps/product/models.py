@@ -126,16 +126,9 @@ class Recommendations(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     product = models.ForeignKey(Product,on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
-    succes_quantity = models.PositiveIntegerField(default=0)
+    application_for_production = models.PositiveIntegerField(default=0)
     days_left = models.IntegerField()
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
-
-    def save(self, *args, **kwargs) -> None:
-        
-        if self.quantity == self.succes_quantity:
-            self.delete()
-            return
-        super().save(*args, **kwargs)
 
     class Meta:
         db_table = "recommendations"

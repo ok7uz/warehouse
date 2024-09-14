@@ -235,7 +235,8 @@ class InProductionView(APIView):
             summary='Simple example',
             description='This is a simple example of input.',
             value={
-                "recommendations_ids": ["uuid1", "uuid2"]
+                "recommendations_ids": "uuid",
+                "application_for_production": 0
             },
             request_only=True,  # Only applicable for request bodies
         ),
@@ -245,7 +246,7 @@ class InProductionView(APIView):
         serializer = InProductionSerializer(data=data)
         if serializer.is_valid():
             in_productions = serializer.save()
-            serializer = InProductionSerializer(in_productions,many=True)
+            serializer = InProductionSerializer(in_productions)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
