@@ -50,6 +50,9 @@ class Product(models.Model):
         verbose_name_plural = "Products"
         ordering = ('vendor_code',)
 
+    def __str__(self) -> str:
+        return self.vendor_code
+
 class ProductSale(models.Model):
     
     id = models.AutoField(primary_key=True, editable=False, unique=True)
@@ -142,7 +145,7 @@ class InProduction(models.Model):
     manufacture = models.PositiveIntegerField()
     produced = models.PositiveIntegerField(default=0)
     company = models.ForeignKey(Company,on_delete=models.CASCADE)
-    recommendations = models.OneToOneField(Recommendations,on_delete=models.CASCADE)
+    recommendations = models.ForeignKey(Recommendations,on_delete=models.CASCADE)
 
     def __str__(self) -> str:
         return self.product.vendor_code
@@ -152,7 +155,7 @@ class Shelf(models.Model):
     id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False, unique=True)
     shelf_name = models.CharField(max_length=50)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    stock = models.PositiveIntegerField()
+    stock = models.PositiveIntegerField(default=0)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
@@ -164,13 +167,14 @@ class SortingWarehouse(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     
 
-class WarhouseHistory(models.Model):
+class WarehouseHistory(models.Model):
     
     date = models.DateField(auto_now_add=True)
-    stock = models.PositiveBigIntegerField(default=0)
+    stock = models.IntegerField(default=0)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     shelf = models.ForeignKey(Shelf, on_delete=models.SET_NULL,null=True)
 
     def __str__(self) -> str:
         return self.product.vendor_code
+    

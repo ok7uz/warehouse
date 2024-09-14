@@ -9,11 +9,11 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 
 from apps.company.models import Company
-from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarhouseHistory
+from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
-    SortingToWarehouseSeriallizer, ShelfUpdateSerializer
+    SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer
     
 
 COMPANY_SALES_PARAMETRS = [
@@ -235,7 +235,7 @@ class InProductionView(APIView):
             summary='Simple example',
             description='This is a simple example of input.',
             value={
-                "recommendations_ids": "uuid",
+                "recommendations_id": "uuid",
                 "application_for_production": 0
             },
             request_only=True,  # Only applicable for request bodies
@@ -300,7 +300,7 @@ class UpdateInProductionView(APIView):
         
         in_production = get_object_or_404(InProduction,id=inproduction_id)
         produced = request.data.get("produced",0)
-        in_production.product += produced
+        in_production.produced += produced
         in_production.save()
         serializer = InProductionUpdateSerializer(in_production)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -377,33 +377,84 @@ class WarehouseHistoryView(APIView):
         
         if sort and sort in ["Z-A", "A-Z"]:
             ordering_by_alphabit = "-" if sort =="Z-A" else ""
-            sorting_warehouse = WarhouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
+            sorting_warehouse = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
         elif sort and sort in ["-1", "1"]:
             ordering_by_quantity = "-" if sort =="-1" else ""
-            sorting_warehouse = WarhouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_quantity}unsorted").distinct("product")
+            sorting_warehouse = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_quantity}unsorted").distinct("product")
         else:
-            sorting_warehouse = WarhouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).distinct("product")
+            sorting_warehouse = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).distinct("product")
         context = {"date_from": date_from, "date_to": date_to}
         serializer = WarehouseHistorySerializer(sorting_warehouse, context={'dates': context}, many=True)
         
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
-        return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
+        count = paginator.count
+        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
 class UpdateShelfView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     @extend_schema(
         description='Update shelf (Место)',
-        tags=["Update Shelf"],
+        tags=["Shelf (Место)"],
         responses={200: ShelfUpdateSerializer()},
         request=ShelfUpdateSerializer,
     )
     def patch(self, request, shelf_id):
         data = request.data
         shelf = get_object_or_404(Shelf,id=shelf_id)
-        serializer = InProductionUpdateSerializer(shelf,data=data)
+        serializer = ShelfUpdateSerializer(shelf,data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class InventoryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description='Get all company inventory (В производстве)',
+        tags=["Inventory (Инвентаризация)"],
+        responses={200: InProductionSerializer(many=True)},
+        parameters=COMPANY_WAREHOUSE_PARAMETRS
+    )
+    def get(self, request, company_id):
+        
+        company = get_object_or_404(Company,id=company_id)
+        sort = request.query_params.get("sort","")
+        article = request.query_params.get("article","")
+        page_size = int(request.query_params.get("page_size",100))
+        page = int(request.query_params.get("page",1))
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code")
+        elif sort and sort in ["-1", "1"]:
+            ordering_by_quantity = "-" if sort =="-1" else ""
+            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}stock")
+        else:
+            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article)
+        
+        serializer = InventorySerializer(in_production,many=True)
+        paginator = Paginator(serializer.data, per_page=page_size)
+        page = paginator.get_page(page)
+        count = paginator.count
+        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        description='Add place',
+        tags=["Inventory (Инвентаризация)"],
+        responses={201: InventorySerializer()},
+        request=CreateInventorySerializer,
+        )
+    
+    def post(self,request: Request, company_id):
+        data = request.data
+        get_object_or_404(Company,id=company_id)
+        get_object_or_404(Product,vendor_code=data['vendor_code'])
+        serializer = CreateInventorySerializer(data=data, context={"company_id": company_id})
+        if serializer.is_valid():
+            in_productions = serializer.save()
+            serializer = InventorySerializer(in_productions)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

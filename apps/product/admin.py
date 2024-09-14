@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock, \
-      Recommendations, InProduction, Shelf, SortingWarehouse, WarhouseHistory
+      Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory
 from django.db.models import Count
 
 @admin.register(Product)
@@ -92,7 +92,7 @@ class SortingWarehouseAdminView(admin.ModelAdmin):
     def vendor_code(self, recommandations: Recommendations):
         return recommandations.product.vendor_code
     
-@admin.register(WarhouseHistory)
+@admin.register(WarehouseHistory)
 class WarehouseHistoryAdminView(admin.ModelAdmin):
     list_display =["vendor_code", "id", "date","stock"]
     search_filter = ["product__vendor_code"]

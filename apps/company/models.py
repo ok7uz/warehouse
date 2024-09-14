@@ -21,5 +21,5 @@ class Company(models.Model):
 class CompanySettings(models.Model):
 
     last_sale_days = models.IntegerField()
-    # sale_coefficient = models.DecimalField(max_digits=3,decimal_places=2)
+    next_sale_days = models.IntegerField()
     company = models.ForeignKey(to=Company, on_delete=models.CASCADE)

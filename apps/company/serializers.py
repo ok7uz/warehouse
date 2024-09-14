@@ -1,14 +1,14 @@
 import datetime
 
-from django.db.models import Sum, Count, Max
+from django.db.models import Sum, Count, Max, F
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from apps.accounts.models import CustomUser
-from apps.company.models import Company
+from apps.company.models import Company, CompanySettings
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
-        InProduction, SortingWarehouse, Shelf, WarhouseHistory, Product
+        InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product
 from django.core.paginator import Paginator
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -49,7 +49,7 @@ class CompanyCreateAndUpdateSerializers(serializers.ModelSerializer):
         fbs_campaign_id = validated_data.pop('fbs_campaign_id', None)
         business_id = validated_data.pop('business_id', None)
         company = Company.objects.create(**validated_data)
-        
+        CompanySettings.objects.create(last_sale_days=30,next_sale_days=100,company=company)
         if wb_api_key:
             willberries = Wildberries.objects.create(wb_api_key=wb_api_key, company=company)
         if api_token and client_id:
@@ -393,7 +393,7 @@ class RecommendationsSerializer(serializers.Serializer):
     product = serializers.SerializerMethodField()
     quantity = serializers.IntegerField()
     days_left = serializers.IntegerField()
-    succes_quantity = serializers.IntegerField()
+    application_for_production = serializers.IntegerField()
 
     class Meta:
         model = Recommendations
@@ -414,8 +414,15 @@ class InProductionSerializer(serializers.Serializer):
         model = InProduction
         fields = ["id", "product","manufacture", "produced"]
 
-    def get_product(self, instance):
-        return instance.product.vendor_code
+    def to_representation(self, instance:InProduction):
+        dc = {
+            "id": instance.pk,
+            "product": instance.product.vendor_code,
+            "manufacture": instance.manufacture,
+            "produced": instance.produced
+        }
+        return dc
+
     
     def validate_recommendations_id(self, value):
         errors = []
@@ -432,7 +439,8 @@ class InProductionSerializer(serializers.Serializer):
         company = recommendations.company
         product = recommendations.product
         application_for_production = validated_data['application_for_production']
-        production = InProduction.objects.create(company=company,product=product, manufacture=application_for_production)
+        
+        production = InProduction.objects.create(company=company,product=product, manufacture=application_for_production,recommendations=recommendations)
         recommendations.application_for_production += application_for_production
         recommendations.save()
         return production
@@ -476,7 +484,7 @@ class WarehouseHistorySerializer(serializers.ModelSerializer):
     product = serializers.SerializerMethodField()
     data = serializers.SerializerMethodField()
     class Meta:
-        model = WarhouseHistory
+        model = WarehouseHistory
         fields = ["product","data"]
 
     def get_product(self,obj):
@@ -489,15 +497,19 @@ class WarehouseHistorySerializer(serializers.ModelSerializer):
         date_to = dates.get("date_to")
         date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
         dc = {date.strftime("%Y-%m-%d"): 0 for date in date_range}
-
-        for date in date_range:
-            total = WarhouseHistory.objects.filter(product=obj.product, date=date, company=obj.company).aggregate(total=Sum("stock")).get("total",0)
-            if total:
-                dc[date.strftime("%Y-%m-%d")] = total
-            else:
-                dc[date.strftime("%Y-%m-%d")] = 0
+        results = {}
+        shelfs = WarehouseHistory.objects.filter(product=obj.product)
+        for shelf in shelfs:
+            results[shelf.shelf.shelf_name] = dc
+        for shelf in shelfs:
+            for date in date_range:
+                total = WarehouseHistory.objects.filter(product=obj.product, date=date, company=obj.company, shelf=shelf.shelf).aggregate(total=Sum("stock")).get("total",0)
+                if total:
+                    results[shelf.shelf.shelf_name][date.strftime("%Y-%m-%d")] = total
+                else:
+                    results[shelf.shelf.shelf_name][date.strftime("%Y-%m-%d")] = 0
         
-        return dc
+        return results
 
 class ValidateDict(serializers.Serializer):
     sorting_warehouse_id = serializers.IntegerField()
@@ -545,8 +557,11 @@ class SortingToWarehouseSeriallizer(serializers.ModelSerializer):
         sorting_warehouse.unsorted -= stock
         sorting_warehouse.save()
 
-        Shelf.objects.create(shelf_name=shelf_name,product=product,company=company,stock=stock)
-
+        shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)
+        
+        shelf.stock = F("stock") + stock
+        shelf.save()
+        
         return sorting_warehouse
 
 class ShelfUpdateSerializer(serializers.ModelSerializer):
@@ -559,15 +574,80 @@ class ShelfUpdateSerializer(serializers.ModelSerializer):
         fields = ['product','shelf_name','stock']
 
     def update(self, instance: Shelf, validated_data):
+        
         try:
             product = Product.objects.get(vendor_code=validated_data['product'])
         except:
             product = instance.product
         shelf_name = validated_data.get("shelf_name",instance.shelf_name)
         stock = validated_data.get("stock", instance.stock)
-        updated = instance.update(shelf_name=shelf_name,product=product,stock=stock)
-
-        return updated
+        
+        instance.shelf_name = shelf_name
+        instance.stock = stock
+        instance.product = product
+        instance.save()
+        
+        return instance
     
     def get_product(self,obj):
         return obj.product.vendor_code
+    
+class InventorySerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    shelfs = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+    total_fact = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WarehouseHistory
+        fields = ['product','shelfs','total','total_fact']
+
+    def get_product(self,obj):
+        return obj.product.vendor_code
+    
+    def get_shelfs(self,obj):
+        shelfs = Shelf.objects.filter(product=obj.product)
+        dc = []
+        for shelf in shelfs:
+            pk = shelf.pk
+            name = shelf.shelf_name
+            stock = shelf.stock
+            dc.append({"id": pk,"shelf_name":name,"stock": stock})
+        return dc
+    
+    def get_total(self,obj):
+        total = Shelf.objects.filter(product=obj.product).aggregate(total=Sum("stock"))['total']
+        if not total:
+            total = 0
+        return total
+    
+    def get_total_fact(self,obj):
+        total = WarehouseHistory.objects.filter(product=obj.product).aggregate(total=Sum("stock"))['total']
+        if not total:
+            total = 0
+        return total
+
+class CreateInventorySerializer(serializers.Serializer):
+    vendor_code = serializers.CharField()
+    shelf_name = serializers.CharField()
+    stock = serializers.IntegerField()
+    
+    def create(self, validated_data):
+        vendor_code = validated_data['vendor_code']
+        company_id = self.context['company_id']
+        shelf_name = validated_data['shelf_name']
+        stock = validated_data['stock']
+        
+        product = Product.objects.get(vendor_code=vendor_code)
+        company = Company.objects.get(id=company_id)
+
+        shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)      
+        shelf.stock = F("stock") + stock
+        shelf.save()
+
+        warehouse_history, created = WarehouseHistory.objects.get_or_create(company=company,product=product,shelf=shelf)
+        warehouse_history.stock = F("stock") + stock
+        warehouse_history.save()
+
+        return warehouse_history
+
