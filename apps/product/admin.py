@@ -6,8 +6,8 @@ from django.db.models import Count
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['vendor_code']
-    search_fields = ['vendor_code']
+    list_display = ['vendor_code',"id"]
+    search_fields = ['vendor_code', "id"]
 
 @admin.register(ProductSale)
 class ProductSaleAdmin(admin.ModelAdmin):

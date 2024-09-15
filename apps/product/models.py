@@ -128,9 +128,9 @@ class Recommendations(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     product = models.ForeignKey(Product,on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(default=0)
     application_for_production = models.PositiveIntegerField(default=0)
-    days_left = models.IntegerField()
+    days_left = models.IntegerField(default=0)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
     class Meta:

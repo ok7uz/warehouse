@@ -651,3 +651,8 @@ class CreateInventorySerializer(serializers.Serializer):
 
         return warehouse_history
 
+class SettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=CompanySettings
+        fields = ["last_sale_days","next_sale_days"]
+        

@@ -7,14 +7,16 @@ from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.views import APIView
+from django_celery_results.models import TaskResult
 
-from apps.company.models import Company
+from apps.company.models import Company, CompanySettings
 from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
-    SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer
-    
+    SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
+    SettingsSerializer
+from .tasks import update_recomendations
 
 COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
@@ -106,7 +108,6 @@ class CompanyDetailView(APIView):
         company.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
 class CompanySalesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -123,7 +124,6 @@ class CompanySalesView(APIView):
         company = get_object_or_404(Company,id=company_id)
         serializer = CompanySalesSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 class CompanyOrdersView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -143,7 +143,6 @@ class CompanyOrdersView(APIView):
         company = get_object_or_404(Company,id=company_id)
         serializer = CompanyOrdersSerializer(company, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 class CompanyStocksView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -458,3 +457,58 @@ class InventoryView(APIView):
             serializer = InventorySerializer(in_productions)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class SettingsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+     description='Get company settings',
+    tags=["Settings"],
+    responses={201: InventorySerializer()},
+    request=CreateInventorySerializer,
+        )
+    def get(self, request: Request, company_id):
+        company = get_object_or_404(Company, id=company_id)
+        settings = CompanySettings.objects.get(company=company)
+        serializer = SettingsSerializer(settings)
+        return Response(serializer.data, status.HTTP_200_OK)
+    
+    @extend_schema(
+    description='Update company settings last sale days and next sale days',
+    tags=["Settings"],
+    responses={201: SettingsSerializer()},
+    request=SettingsSerializer,
+        )
+    def patch(self, request: Request, company_id):
+        data = request.data
+        company = get_object_or_404(Company, id=company_id)
+        settings = CompanySettings.objects.get(company=company)
+        serializer = SettingsSerializer(settings, data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status.HTTP_200_OK)
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        
+class CalculationRecommendationView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    @extend_schema(
+    description='Calculation recommendation',
+    tags=["Recomamandations"],
+    responses={200: {"message": "Calculation started", "task_id": 465456}}
+        )
+    def get(self, request, company_id):
+        company = get_object_or_404(Company, id=company_id)
+        task = update_recomendations.delay(company_id)
+        return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
+    
+class CheckTaskView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    @extend_schema(
+    description='Get the status of the recommendation calculation process',
+    tags=["Recomamandations"],
+    responses={200: {"message": "Calculation started", "task_id": 465456}}
+        )
+    def get(self, request, task_id):
+        task_result = get_object_or_404(TaskResult, id=task_id)
+        return Response({"status": task_result.status, "result": task_result.result},status.HTTP_200_OK)
+    
