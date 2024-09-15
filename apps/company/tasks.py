@@ -46,7 +46,6 @@ def update_recomendations(company):
             
             avg_sale = total_sale/last_sale_days
             days_left = floor((shelf_stock + sorting + stock)/avg_sale)
-            print(f"shelf_stock: {shelf_stock} sorting: {sorting} stock: {stock} days: {days_left}")
             need_stock = int(round(avg_sale*next_sale_days))
             recommend = need_stock - (shelf_stock + sorting + stock)
             
