@@ -47,11 +47,13 @@ def update_wildberries_sales():
 
                 wildberries = wildberries
                 warehouse = warehouse
-                product = Product.objects.filter(vendor_code=item['supplierArticle'])
+                barcode = item["barcode"]
+
+                product = Product.objects.filter(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
                 if product.exists():
                     product = product.first()
                 else:
-                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
+                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
                 date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
                 product_sale, created_sale= ProductSale.objects.get_or_create(
                     product=product,
@@ -95,12 +97,12 @@ def update_wildberries_orders():
 
                 wildberries = wildberries
                 warehouse = warehouse
-                
-                product = Product.objects.filter(vendor_code=item['supplierArticle'])
+                barcode = item['barcode']
+                product = Product.objects.filter(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
                 if product.exists():
                     product = product.first()
                 else:
-                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
+                    product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
                 date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
                 product_order, created_sale= ProductOrder.objects.get_or_create(
                     product=product,
@@ -127,11 +129,12 @@ def update_wildberries_stocks():
             company = wildberries.company
             date = datetime.strptime(item["lastChangeDate"],"%Y-%m-%dT%H:%M:%S")
             
-            product = Product.objects.filter(vendor_code=item['supplierArticle'])
+            barcode = item['barcode']
+            product = Product.objects.filter(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
             if product.exists():
                 product = product.first()
             else:
-                product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'])
+                product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="wildberries")
             
             product_stock, created_s = ProductStock.objects.get_or_create(
@@ -174,7 +177,18 @@ def get_paid_orders(url, headers, date_from, status="delivered",status_2="paid")
     else:
       
         return []
-    
+
+def get_barcode(vendor_code, api_key, client_id):
+    body = {"offer_id": vendor_code}
+    headers = {
+        "Api-Key":api_key,
+        "Client-Id": client_id,
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.post("https://api-seller.ozon.ru/v2/product/info",json=body, headers=headers)
+    return response.json()["result"]["barcode"]
+
 @app.task
 def update_ozon_sales():
     
@@ -217,25 +231,41 @@ def update_ozon_sales():
                     warehouse_name = ""
                 oblast_okrug_name = item["analytics_data"]['region']
                 region_name = item["analytics_data"]['city']
-                product = Product.objects.filter(vendor_code=sku)
+                barcode = get_barcode(vendor_code=sku, api_key=ozon.api_token,client_id=ozon.client_id)
+                product = Product.objects.filter(barcode=barcode)
                 if product.exists():
-                    product = product.first()
+                    wildberries_product = product.filter(marketplace_type="wildberries")
+                    if wildberries_product.exists():
+                        vendor_code = wildberries_product.first().vendor_code
+                        ozon_product = product.filter(marketplace_type='ozon')
+                        if ozon_product.exists():
+                            ozon_product.first().vendor_code = vendor_code
+                            ozon_product.first().save()
+                            product = ozon_product.first()
+                    else:
+                        product = product.first()
                 else:
-                    product, created_p = Product.objects.get_or_create(vendor_code=sku)
+                    product, created_p = Product.objects.get_or_create(vendor_code=sku, marketplace_type="ozon", barcode=barcode)
                 warehouse, created_w = Warehouse.objects.get_or_create(
                     name = warehouse_name,
                     country_name = "Russia",
                     oblast_okrug_name = oblast_okrug_name,
                     region_name = region_name
                 )
-                
-                product_sale = ProductSale.objects.get_or_create(
+                if not ProductSale.objects.filter(
                     product=product,
                     company=company,
                     date=date,
                     warehouse=warehouse,
                     marketplace_type = "ozon"
-                )
+                ).exists():
+                    product_sale = ProductSale.objects.get_or_create(
+                        product=product,
+                        company=company,
+                        date=date,
+                        warehouse=warehouse,
+                        marketplace_type = "ozon"
+                    )
             try:
                 date_from1 = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date
             except:
@@ -244,7 +274,6 @@ def update_ozon_sales():
                 date_from = date_from1.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
             else:
                 date_from = (date_from1 + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
 
 @app.task
 def update_ozon_orders():
@@ -286,11 +315,21 @@ def update_ozon_orders():
                 oblast_okrug_name = item["analytics_data"]['region']
                 region_name = item["analytics_data"]['city']
 
-                product = Product.objects.filter(vendor_code=sku)
+                barcode = get_barcode(vendor_code=sku, api_key=ozon.api_token,client_id=ozon.client_id)
+                product = Product.objects.filter(barcode=barcode)
                 if product.exists():
-                    product = product.first()
+                    wildberries_product = product.filter(marketplace_type="wildberries")
+                    if wildberries_product.exists():
+                        vendor_code = wildberries_product.first().vendor_code
+                        ozon_product = product.filter(marketplace_type='ozon')
+                        if ozon_product.exists():
+                            ozon_product.first().vendor_code = vendor_code
+                            ozon_product.first().save()
+                            product = ozon_product.first()
+                    else:
+                        product = product.first()
                 else:
-                    product, created_p = Product.objects.get_or_create(vendor_code=sku)
+                    product, created_p = Product.objects.get_or_create(vendor_code=sku, marketplace_type="ozon", barcode=barcode)
                 warehouse, created_w = Warehouse.objects.get_or_create(
                     name = warehouse_name,
                     country_name = "Russia",
@@ -314,7 +353,6 @@ def update_ozon_orders():
                 date_from = date_from1.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
             else:
                 date_from = (date_from1 + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
 
 @app.task
 def update_ozon_stocks():
@@ -350,11 +388,21 @@ def update_ozon_stocks():
             quantity = item['reserved_amount']
             
             date = datetime.now()
-            product = Product.objects.filter(vendor_code=vendor_code)
+            barcode = get_barcode(vendor_code=vendor_code, api_key=ozon.api_token,client_id=ozon.client_id)
+            product = Product.objects.filter(barcode=barcode)
             if product.exists():
-                product = product.first()
+                wildberries_product = product.filter(marketplace_type="wildberries")
+                if wildberries_product.exists():
+                    vendor_code = wildberries_product.first().vendor_code
+                    ozon_product = product.filter(marketplace_type='ozon')
+                    if ozon_product.exists():
+                        ozon_product.first().vendor_code = vendor_code
+                        ozon_product.first().save()
+                        product = ozon_product.first()
+                else:
+                    product = product.first()
             else:
-                product, _ = Product.objects.get_or_create(vendor_code=vendor_code)
+                product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="ozon", barcode=barcode)
             warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="ozon")
             product_stock, created_s = ProductStock.objects.get_or_create(
                 product=product,
@@ -406,6 +454,22 @@ def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
             return []
     return orders
 
+def find_barcode(vendor_code, company_id, api_key):
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+    response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers).json()
+    result = []
+    while "paging" in response["result"] and "nextPageToken" in response['result']["paging"]:
+        result += response["result"]["offerMappings"]
+        params = {"page_token": response['result']["paging"]['nextPageToken']}
+        response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers, params=params).json()
+
+    result += response["result"]["offerMappings"]
+    for product in result:
+        if product["offer"]["offerId"] == vendor_code:
+            return product["offer"]["barcodes"][0]
+        
 @app.task
 def update_yandex_market_sales():
     
@@ -458,18 +522,35 @@ def update_yandex_market_sales():
                 for product in products:
                     
                     vendor_code = product["offerId"]
-                    product_obj = Product.objects.filter(vendor_code=vendor_code)
+                    barcode = find_barcode(vendor_code=vendor_code,company_id=yandex_market.business_id,api_key=yandex_market.api_key_bearer)
+                    product_obj = Product.objects.filter(barcode=barcode)
                     if product_obj.exists():
-                        product_obj = product_obj.first()
+                        wildberries_product = product_obj.filter(marketplace_type="wildberries")
+                        if product_obj.exists():
+                            vendor_code = wildberries_product.first().vendor_code
+                            yandex_market_p = Product.objects.filter(barcode=barcode, marketplace_type="yandexmarket")
+                            if yandex_market_p.exists():
+                                yandex_market_p.first().vendor_code = vendor_code
+                                yandex_market.save()
+                                product_obj = yandex_market_p.first()
+                        else:
+                            product_obj = product_obj.first()
                     else:
-                        product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
-                    product_s = ProductSale.objects.get_or_create(
+                        product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
+                    if ProductSale.objects.filter(
                         product=product_obj,
                         company=company,
                         date=date,
                         warehouse=warehouse,
                         marketplace_type="yandexmarket"
-                    )
+                    ).exists():
+                        product_s = ProductSale.objects.get_or_create(
+                            product=product_obj,
+                            company=company,
+                            date=date,
+                            warehouse=warehouse,
+                            marketplace_type="yandexmarket"
+                        )
 
                     date = date + timedelta(seconds=1)
     return "succes"
@@ -522,11 +603,21 @@ def update_yandex_market_orders():
                 
                 for product in products:
                     vendor_code = product["offerId"]
-                    product_obj= Product.objects.filter(vendor_code=vendor_code)
+                    barcode = find_barcode(vendor_code=vendor_code,company_id=yandex_market.business_id,api_key=yandex_market.api_key_bearer)
+                    product_obj = Product.objects.filter(barcode=barcode)
                     if product_obj.exists():
-                        product_obj = product_obj.first()
+                        wildberries_product = product_obj.filter(marketplace_type="wildberries")
+                        if product_obj.exists():
+                            vendor_code = wildberries_product.first().vendor_code
+                            yandex_market_p = Product.objects.filter(barcode=barcode, marketplace_type="yandexmarket")
+                            if yandex_market_p.exists():
+                                yandex_market_p.first().vendor_code = vendor_code
+                                yandex_market.save()
+                                product_obj = yandex_market_p.first()
+                        else:
+                            product_obj = product_obj.first()
                     else:
-                        product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
+                        product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
                     product_s = ProductOrder.objects.get_or_create(
                         product=product_obj,
                         company=company,
@@ -604,11 +695,21 @@ def update_yandex_stocks():
                         count += stock["count"]
                 quantity = count
             
-                product= Product.objects.filter(vendor_code=vendor_code)
+                barcode = find_barcode(vendor_code=vendor_code,company_id=yandex.business_id,api_key=yandex.api_key_bearer)
+                product = Product.objects.filter(barcode=barcode)
                 if product.exists():
-                    product = product.first()
-                else:
-                    product, created_p = Product.objects.get_or_create(vendor_code=vendor_code)
+                    wildberries_product = product.filter(marketplace_type="wildberries")
+                    if product.exists():
+                        vendor_code = wildberries_product.first().vendor_code
+                        yandex_p = Product.objects.filter(barcode=barcode, marketplace_type="yandexmarket")
+                        if yandex_p.exists():
+                            yandex_p.first().vendor_code = vendor_code
+                            yandex.save()
+                            product = yandex_p.first()
+                        else:
+                            product = product.first()
+                    else:
+                        product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
                 warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="yandexmarket")
                 try:
                     product_stock, created_s = ProductStock.objects.get_or_create(
