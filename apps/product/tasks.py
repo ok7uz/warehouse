@@ -236,12 +236,15 @@ def update_ozon_sales():
                 if product.exists():
                     wildberries_product = product.filter(marketplace_type="wildberries")
                     if wildberries_product.exists():
-                        vendor_code = wildberries_product.first().vendor_code
+                        if wildberries_product.exists():
+                            sku = wildberries_product.first().vendor_code
                         ozon_product = product.filter(marketplace_type='ozon')
                         if ozon_product.exists():
-                            ozon_product.first().vendor_code = vendor_code
+                            ozon_product.first().vendor_code = sku
                             ozon_product.first().save()
                             product = ozon_product.first()
+                        else:
+                            product, created_p = Product.objects.get_or_create(vendor_code=sku, marketplace_type="ozon", barcode=barcode)
                     else:
                         product = product.first()
                 else:
@@ -252,6 +255,7 @@ def update_ozon_sales():
                     oblast_okrug_name = oblast_okrug_name,
                     region_name = region_name
                 )
+                
                 if not ProductSale.objects.filter(
                     product=product,
                     company=company,
@@ -259,7 +263,7 @@ def update_ozon_sales():
                     warehouse=warehouse,
                     marketplace_type = "ozon"
                 ).exists():
-                    product_sale = ProductSale.objects.get_or_create(
+                    product_sale = ProductSale.objects.create(
                         product=product,
                         company=company,
                         date=date,
@@ -320,12 +324,15 @@ def update_ozon_orders():
                 if product.exists():
                     wildberries_product = product.filter(marketplace_type="wildberries")
                     if wildberries_product.exists():
-                        vendor_code = wildberries_product.first().vendor_code
+                        if wildberries_product.exists():
+                            sku = wildberries_product.first().vendor_code
                         ozon_product = product.filter(marketplace_type='ozon')
                         if ozon_product.exists():
-                            ozon_product.first().vendor_code = vendor_code
+                            ozon_product.first().vendor_code = sku
                             ozon_product.first().save()
                             product = ozon_product.first()
+                        else:
+                            product, created_p = Product.objects.get_or_create(vendor_code=sku, marketplace_type="ozon", barcode=barcode)
                     else:
                         product = product.first()
                 else:
@@ -337,7 +344,7 @@ def update_ozon_orders():
                     region_name = region_name
                 )
                 
-                product_sale = ProductOrder.objects.get_or_create(
+                product_sale = ProductOrder.objects.create(
                     product=product,
                     company=company,
                     date=date,
@@ -393,12 +400,15 @@ def update_ozon_stocks():
             if product.exists():
                 wildberries_product = product.filter(marketplace_type="wildberries")
                 if wildberries_product.exists():
-                    vendor_code = wildberries_product.first().vendor_code
+                    if wildberries_product.exists():
+                        vendor_code = wildberries_product.first().vendor_code
                     ozon_product = product.filter(marketplace_type='ozon')
                     if ozon_product.exists():
                         ozon_product.first().vendor_code = vendor_code
                         ozon_product.first().save()
                         product = ozon_product.first()
+                    else:
+                        product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="ozon", barcode=barcode)
                 else:
                     product = product.first()
             else:
@@ -527,23 +537,26 @@ def update_yandex_market_sales():
                     if product_obj.exists():
                         wildberries_product = product_obj.filter(marketplace_type="wildberries")
                         if product_obj.exists():
-                            vendor_code = wildberries_product.first().vendor_code
+                            if wildberries_product.exists():
+                                vendor_code = wildberries_product.first().vendor_code
                             yandex_market_p = Product.objects.filter(barcode=barcode, marketplace_type="yandexmarket")
                             if yandex_market_p.exists():
                                 yandex_market_p.first().vendor_code = vendor_code
                                 yandex_market.save()
                                 product_obj = yandex_market_p.first()
+                            else:
+                                product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
                         else:
                             product_obj = product_obj.first()
                     else:
                         product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
-                    if ProductSale.objects.filter(
+                    if not ProductSale.objects.filter(
                         product=product_obj,
                         company=company,
                         date=date,
                         warehouse=warehouse,
                         marketplace_type="yandexmarket"
-                    ).exists():
+                    ):
                         product_s = ProductSale.objects.get_or_create(
                             product=product_obj,
                             company=company,
@@ -608,12 +621,15 @@ def update_yandex_market_orders():
                     if product_obj.exists():
                         wildberries_product = product_obj.filter(marketplace_type="wildberries")
                         if product_obj.exists():
-                            vendor_code = wildberries_product.first().vendor_code
+                            if wildberries_product.exists():
+                                vendor_code = wildberries_product.first().vendor_code
                             yandex_market_p = Product.objects.filter(barcode=barcode, marketplace_type="yandexmarket")
                             if yandex_market_p.exists():
                                 yandex_market_p.first().vendor_code = vendor_code
                                 yandex_market.save()
                                 product_obj = yandex_market_p.first()
+                            else:
+                                product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
                         else:
                             product_obj = product_obj.first()
                     else:
@@ -700,14 +716,16 @@ def update_yandex_stocks():
                 if product.exists():
                     wildberries_product = product.filter(marketplace_type="wildberries")
                     if product.exists():
-                        vendor_code = wildberries_product.first().vendor_code
+                        if wildberries_product.exists():
+                            vendor_code = wildberries_product.first().vendor_code
                         yandex_p = Product.objects.filter(barcode=barcode, marketplace_type="yandexmarket")
                         if yandex_p.exists():
                             yandex_p.first().vendor_code = vendor_code
                             yandex.save()
                             product = yandex_p.first()
+                            
                         else:
-                            product = product.first()
+                            product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
                     else:
                         product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
                 warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="yandexmarket")
