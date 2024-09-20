@@ -187,7 +187,10 @@ def get_barcode(vendor_code, api_key, client_id):
     }
 
     response = requests.post("https://api-seller.ozon.ru/v2/product/info",json=body, headers=headers)
-    return response.json()["result"]["barcode"]
+    print(response.text)
+    if response.status_code == 200:
+        return response.json()["result"]["barcode"]
+    return 0 
 
 @app.task
 def update_ozon_sales():
@@ -232,6 +235,8 @@ def update_ozon_sales():
                 oblast_okrug_name = item["analytics_data"]['region']
                 region_name = item["analytics_data"]['city']
                 barcode = get_barcode(vendor_code=sku, api_key=ozon.api_token,client_id=ozon.client_id)
+                if not barcode:
+                    continue
                 product = Product.objects.filter(barcode=barcode)
                 if product.exists():
                     wildberries_product = product.filter(marketplace_type="wildberries")
@@ -320,6 +325,8 @@ def update_ozon_orders():
                 region_name = item["analytics_data"]['city']
 
                 barcode = get_barcode(vendor_code=sku, api_key=ozon.api_token,client_id=ozon.client_id)
+                if not barcode:
+                    continue
                 product = Product.objects.filter(barcode=barcode)
                 if product.exists():
                     wildberries_product = product.filter(marketplace_type="wildberries")
@@ -396,6 +403,8 @@ def update_ozon_stocks():
             
             date = datetime.now()
             barcode = get_barcode(vendor_code=vendor_code, api_key=ozon.api_token,client_id=ozon.client_id)
+            if not barcode:
+                continue
             product = Product.objects.filter(barcode=barcode)
             if product.exists():
                 wildberries_product = product.filter(marketplace_type="wildberries")
@@ -545,7 +554,7 @@ def update_yandex_market_sales():
                                 yandex_market.save()
                                 product_obj = yandex_market_p.first()
                             else:
-                                product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
+                                product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
                         else:
                             product_obj = product_obj.first()
                     else:

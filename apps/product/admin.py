@@ -3,6 +3,7 @@ from django.contrib import admin
 from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock, \
       Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory
 from django.db.models import Count
+from django_celery_results.models import TaskResult
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -99,6 +100,3 @@ class WarehouseHistoryAdminView(admin.ModelAdmin):
 
     def vendor_code(self, recommandations: Recommendations):
         return recommandations.product.vendor_code
-    
-
-

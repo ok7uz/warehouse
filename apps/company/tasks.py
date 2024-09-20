@@ -30,6 +30,7 @@ def update_recomendations(company):
             product = sale['product']
             total_sale = sale['total_sales']
             product = Product.objects.get(id=int(product))
+            warehouses = ProductStock.objects.filter(product=product).values_list("warehouse")
             
             shelf_stock = shelf_stocks.filter(product=product).order_by("product").first()
             if shelf_stock:
@@ -40,7 +41,7 @@ def update_recomendations(company):
             if not sorting:
                 sorting = 0
             try:
-                stock = stocks.filter(product=product).latest("date").quantity
+                stock = stocks.filter(product=product, warehouse__in=warehouses).latest("date").quantity
             except:
                 stock = 0
             
