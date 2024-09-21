@@ -118,8 +118,8 @@ class CompanySalesView(APIView):
         parameters=COMPANY_SALES_PARAMETRS
     )
     def get(self, request: Request, company_id):
-        update_wildberries_sales.delay()
-        update_ozon_sales.delay()
+        # update_wildberries_sales.delay()
+        # update_ozon_sales.delay()
         update_yandex_market_sales.delay()
         company = get_object_or_404(Company,id=company_id)
         serializer = CompanySalesSerializer(company, context={'request': request})

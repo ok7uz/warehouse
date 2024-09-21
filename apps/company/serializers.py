@@ -603,7 +603,7 @@ class InventorySerializer(serializers.ModelSerializer):
         fields = ['product','shelfs','total','total_fact']
 
     def get_product(self,obj):
-        return obj.product.vendor_code
+        return {"vendor_code":obj.product.vendor_code,"product_id": obj.product.pk}
     
     def get_shelfs(self,obj):
         shelfs = Shelf.objects.filter(product=obj.product)
@@ -628,7 +628,7 @@ class InventorySerializer(serializers.ModelSerializer):
         return total
 
 class CreateInventorySerializer(serializers.Serializer):
-    vendor_code = serializers.CharField()
+    product_id = serializers.IntegerField()
     shelf_name = serializers.CharField()
     stock = serializers.IntegerField()
     

@@ -8,6 +8,7 @@ from django.db.models import F
 from apps.marketplaceservice.models import Ozon, Wildberries, YandexMarket
 from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock
 from config.celery import app
+import time
 
 date_from = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
 
@@ -20,7 +21,7 @@ yandex_report_url = 'https://api.partner.market.yandex.ru/reports/info/{report_i
 
 @app.task
 def update_wildberries_sales():
-
+    
     for wildberries in Wildberries.objects.all():
         
         wb_api_key = wildberries.wb_api_key
@@ -71,6 +72,8 @@ def update_wildberries_sales():
 
 @app.task
 def update_wildberries_orders():
+    
+
     for wildberries in Wildberries.objects.all():
         
         wb_api_key = wildberries.wb_api_key
@@ -172,6 +175,7 @@ def get_paid_orders(url, headers, date_from, status="delivered",status_2="paid")
     }
 
     response = requests.post(url, headers=headers, json=data)
+    
     if response.status_code == 200:
         return response.json().get('result', [])
     else:
@@ -187,7 +191,7 @@ def get_barcode(vendor_code, api_key, client_id):
     }
 
     response = requests.post("https://api-seller.ozon.ru/v2/product/info",json=body, headers=headers)
-    print(response.text)
+    
     if response.status_code == 200:
         return response.json()["result"]["barcode"]
     return 0 
@@ -439,14 +443,17 @@ def update_ozon_stocks():
     return "Succes"
 
 def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
-    date_to = datetime.now().strftime("%d-%m-%Y")
+    if (datetime.strptime(date_from,"%Y-%m-%d") - datetime.now()).days > 30:
+        date_to = (datetime.strptime(date_from,"%Y-%m-%d") + timedelta(days=30)).strftime("%Y-%m-%d")
+    else:
+        date_to = datetime.now().strftime("%Y-%m-%d")
     url = f"https://api.partner.market.yandex.ru/campaigns/{client_id}/orders?orderIds=&status={status}&substatus=&fromDate={date_from}&toDate={date_to}&supplierShipmentDateFrom=&supplierShipmentDateTo=&updatedAtFrom=&updatedAtTo=&dispatchType=&fake=&hasCis=&onlyWaitingForCancellationApprove=&onlyEstimatedDelivery=&buyerType=&page=&pageSize="
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {api_key}'
                 }
     
-    difrence = (datetime.now() - datetime.strptime(date_from,"%d-%m-%Y")).days
+    difrence = (datetime.now() - datetime.strptime(date_from,"%Y-%m-%d")).days
     if difrence == 365:
         orders = []
         months = []
@@ -459,14 +466,26 @@ def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
         for date_from, date_to in months:
             
             url = f"https://api.partner.market.yandex.ru/campaigns/{client_id}/orders?orderIds=&status={status}&substatus=&fromDate={date_from}&toDate={date_to}&supplierShipmentDateFrom=&supplierShipmentDateTo=&updatedAtFrom=&updatedAtTo=&dispatchType=&fake=&hasCis=&onlyWaitingForCancellationApprove=&onlyEstimatedDelivery=&buyerType=&page=&pageSize="
-            response = requests.get(url, headers=headers).json()["orders"]
-            orders += response
+            response = requests.get(url, headers=headers)
+            
+            orders += response.json()["orders"]
+            if "pagesCount" in response.json().keys():
+                for i in range(2,response.json()["pagesCount"]+1):
+                    url = f"https://api.partner.market.yandex.ru/campaigns/{client_id}/orders?orderIds=&status={status}&substatus=&fromDate={date_from}&toDate={date_to}&supplierShipmentDateFrom=&supplierShipmentDateTo=&updatedAtFrom=&updatedAtTo=&dispatchType=&fake=&hasCis=&onlyWaitingForCancellationApprove=&onlyEstimatedDelivery=&buyerType=&page={i}&pageSize="
+                    response = requests.get(url, headers=headers)
+                    if response.status_code == 200:
+                        orders += response.json()["orders"]
     
     else:
         response = requests.get(url, headers=headers)
-        
         if response.status_code == 200:
-            orders = response.json()['orders']
+            orders += response.json()['orders']
+            if "pagesCount" in response.json().keys():
+                for i in range(2,response.json()["pagesCount"]+1):
+                    url = f"https://api.partner.market.yandex.ru/campaigns/{client_id}/orders?orderIds=&status={status}&substatus=&fromDate={date_from}&toDate={date_to}&supplierShipmentDateFrom=&supplierShipmentDateTo=&updatedAtFrom=&updatedAtTo=&dispatchType=&fake=&hasCis=&onlyWaitingForCancellationApprove=&onlyEstimatedDelivery=&buyerType=&page={i}&pageSize="
+                    response = requests.get(url, headers=headers)
+                    if response.status_code == 200:
+                        orders += response.json()["orders"]
             return orders
         else:
             
@@ -479,15 +498,17 @@ def find_barcode(vendor_code, company_id, api_key):
     }
     response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers).json()
     result = []
-    while "paging" in response["result"] and "nextPageToken" in response['result']["paging"]:
+    while "result" in response.keys() and "paging" in response["result"].keys() and "nextPageToken" in response['result']["paging"].keys():
         result += response["result"]["offerMappings"]
         params = {"page_token": response['result']["paging"]['nextPageToken']}
         response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers, params=params).json()
-
-    result += response["result"]["offerMappings"]
+    if "result" in response.keys():
+        result += response["result"]["offerMappings"]
     for product in result:
         if product["offer"]["offerId"] == vendor_code:
             return product["offer"]["barcodes"][0]
+        else: 
+            return 0
         
 @app.task
 def update_yandex_market_sales():
@@ -501,16 +522,16 @@ def update_yandex_market_sales():
         
         date_from = ProductSale.objects.filter(marketplace_type="yandexmarket")
 
-        if not (date_from or date_from.exists()):
-            date_from = (datetime.now()-timedelta(days=365)).strftime("%d-%m-%Y")
+        if not date_from.exists():
+            date_from = (datetime.now()-timedelta(days=365)).strftime("%Y-%m-%d")
         else:
-            date_from =date_from.latest("date").date.strftime("%d-%m-%Y")
+            date_from =date_from.latest("date").date.strftime("%Y-%m-%d")
 
         results1 = get_yandex_orders(api_key_bearer, date_from,client_id=fby_campaign_id)
         results2 = get_yandex_orders(api_key_bearer, date_from,client_id=fbs_campaign_id)
-
+        
         results = results1 + results2
-
+        
         for item in results:
             
             buyer_total = item.get("buyerTotal",0)
@@ -542,6 +563,9 @@ def update_yandex_market_sales():
                     
                     vendor_code = product["offerId"]
                     barcode = find_barcode(vendor_code=vendor_code,company_id=yandex_market.business_id,api_key=yandex_market.api_key_bearer)
+                    print(barcode)
+                    if not barcode:
+                        continue
                     product_obj = Product.objects.filter(barcode=barcode)
                     if product_obj.exists():
                         wildberries_product = product_obj.filter(marketplace_type="wildberries")
@@ -588,9 +612,9 @@ def update_yandex_market_orders():
         date_from = ProductOrder.objects.filter(marketplace_type="yandexmarket")
 
         if not (date_from or date_from.exists()):
-            date_from = (datetime.now()-timedelta(days=365)).strftime("%d-%m-%Y")
+            date_from = (datetime.now()-timedelta(days=365)).strftime("%Y-%m-%d")
         else:
-            date_from =date_from.latest("date").date.strftime("%d-%m-%Y")
+            date_from =date_from.latest("date").date.strftime("%Y-%m-%d")
 
         results1 = get_yandex_orders(api_key_bearer, date_from,client_id=fby_campaign_id,status="PROCESSING")
         results2 = get_yandex_orders(api_key_bearer, date_from,client_id=fbs_campaign_id,status="PROCESSING")
@@ -626,6 +650,8 @@ def update_yandex_market_orders():
                 for product in products:
                     vendor_code = product["offerId"]
                     barcode = find_barcode(vendor_code=vendor_code,company_id=yandex_market.business_id,api_key=yandex_market.api_key_bearer)
+                    if not barcode:
+                        continue
                     product_obj = Product.objects.filter(barcode=barcode)
                     if product_obj.exists():
                         wildberries_product = product_obj.filter(marketplace_type="wildberries")
@@ -721,6 +747,8 @@ def update_yandex_stocks():
                 quantity = count
             
                 barcode = find_barcode(vendor_code=vendor_code,company_id=yandex.business_id,api_key=yandex.api_key_bearer)
+                if not barcode:
+                    continue
                 product = Product.objects.filter(barcode=barcode)
                 if product.exists():
                     wildberries_product = product.filter(marketplace_type="wildberries")
