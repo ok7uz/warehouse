@@ -513,7 +513,10 @@ def find_barcode(vendor_code, company_id, api_key):
     }
     response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers,json=body,params=params)
     if response.status_code == 200:
-        return response.json()["result"]['offerMappings'][0]["offer"]["barcodes"][0]
+        try:
+            return response.json()["result"]['offerMappings'][0]["offer"]["barcodes"][0]
+        except:
+            return 0
     else: 
         return 0
     

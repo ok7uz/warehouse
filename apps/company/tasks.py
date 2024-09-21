@@ -41,7 +41,13 @@ def update_recomendations(company):
             if not sorting:
                 sorting = 0
             try:
-                stock = stocks.filter(product=product, warehouse__in=warehouses).latest("date").quantity
+                stock = stocks.filter(product=product, warehouse__in=warehouses).values('warehouse').annotate(latest_date=Max('date'))
+                summ = 0
+                for item in stock:
+                    count = stocks.filter(warehouse=item["warehouse"],date=item["latest_date"])
+                    if count.exists():
+                        summ += count.first().quantity
+                stock = summ
             except:
                 stock = 0
             

@@ -510,7 +510,7 @@ class CheckTaskView(APIView):
         )
     def get(self, request, task_id):
         try:
-            task_result = TaskResult.objects.get(id=task_id)
+            task_result = TaskResult.objects.get(task_id=task_id)
         except TaskResult.DoesNotExist:
             return Response({"message": "Not found task"},status.HTTP_400_BAD_REQUEST)
         return Response({"status": task_result.status, "result": task_result.result},status.HTTP_200_OK)
