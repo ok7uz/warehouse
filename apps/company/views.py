@@ -450,7 +450,7 @@ class InventoryView(APIView):
     def post(self,request: Request, company_id):
         data = request.data
         get_object_or_404(Company,id=company_id)
-        get_object_or_404(Product,vendor_code=data['vendor_code'])
+        get_object_or_404(Product,id=data['product_id'])
         serializer = CreateInventorySerializer(data=data, context={"company_id": company_id})
         if serializer.is_valid():
             in_productions = serializer.save()
