@@ -354,14 +354,20 @@ def update_ozon_orders():
                     oblast_okrug_name = oblast_okrug_name,
                     region_name = region_name
                 )
-                
-                product_sale = ProductOrder.objects.create(
+                if not ProductOrder.objects.filter(
                     product=product,
                     company=company,
                     date=date,
                     warehouse=warehouse,
                     marketplace_type = "ozon"
-                )
+                ).exists():
+                    product_sale = ProductOrder.objects.create(
+                        product=product,
+                        company=company,
+                        date=date,
+                        warehouse=warehouse,
+                        marketplace_type = "ozon"
+                    )
              
             try:
                 date_from1 = ProductOrder.objects.filter(marketplace_type="ozon").latest('date').date
@@ -477,6 +483,7 @@ def get_yandex_orders(api_key, date_from, client_id, status="DELIVERED"):
                         orders += response.json()["orders"]
     
     else:
+        orders = []
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             orders += response.json()['orders']
@@ -496,19 +503,20 @@ def find_barcode(vendor_code, company_id, api_key):
     headers = {
         "Authorization": f"Bearer {api_key}"
     }
-    response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers).json()
-    result = []
-    while "result" in response.keys() and "paging" in response["result"].keys() and "nextPageToken" in response['result']["paging"].keys():
-        result += response["result"]["offerMappings"]
-        params = {"page_token": response['result']["paging"]['nextPageToken']}
-        response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers, params=params).json()
-    if "result" in response.keys():
-        result += response["result"]["offerMappings"]
-    for product in result:
-        if product["offer"]["offerId"] == vendor_code:
-            return product["offer"]["barcodes"][0]
-        else: 
-            return 0
+    body = {
+         
+        "offerIds": [vendor_code]
+    }
+    params = {
+        'limit': 10,  #
+        'page_token': None
+    }
+    response = requests.post(f"https://api.partner.market.yandex.ru/businesses/{company_id}/offer-mappings",headers=headers,json=body,params=params)
+    if response.status_code == 200:
+        return response.json()["result"]['offerMappings'][0]["offer"]["barcodes"][0]
+    else: 
+        return 0
+    
         
 @app.task
 def update_yandex_market_sales():
@@ -565,7 +573,7 @@ def update_yandex_market_sales():
                     barcode = find_barcode(vendor_code=vendor_code,company_id=yandex_market.business_id,api_key=yandex_market.api_key_bearer)
                     print(barcode)
                     if not barcode:
-                        continue
+                        break
                     product_obj = Product.objects.filter(barcode=barcode)
                     if product_obj.exists():
                         wildberries_product = product_obj.filter(marketplace_type="wildberries")
@@ -664,18 +672,24 @@ def update_yandex_market_orders():
                                 yandex_market.save()
                                 product_obj = yandex_market_p.first()
                             else:
-                                product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
+                                product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
                         else:
                             product_obj = product_obj.first()
                     else:
                         product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
-                    product_s = ProductOrder.objects.get_or_create(
+                    if not ProductOrder.objects.filter(
                         product=product_obj,
                         company=company,
                         date=date,
                         warehouse=warehouse,
-                        marketplace_type="yandexmarket"
-                    )
+                        marketplace_type="yandexmarket").exists():
+                        product_s = ProductOrder.objects.get_or_create(
+                            product=product_obj,
+                            company=company,
+                            date=date,
+                            warehouse=warehouse,
+                            marketplace_type="yandexmarket"
+                        )
 
                     date = date + timedelta(seconds=1)
     return "succes"    
