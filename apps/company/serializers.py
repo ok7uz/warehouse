@@ -3,6 +3,7 @@ import datetime
 from django.db.models import Sum, Count, Max, F
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
+from django.db import transaction
 
 from apps.accounts.models import CustomUser
 from apps.company.models import Company, CompanySettings
@@ -633,23 +634,24 @@ class CreateInventorySerializer(serializers.Serializer):
     stock = serializers.IntegerField()
     
     def create(self, validated_data):
-        vendor_code = validated_data['vendor_code']
-        company_id = self.context['company_id']
-        shelf_name = validated_data['shelf_name']
-        stock = validated_data['stock']
-        
-        product = Product.objects.get(vendor_code=vendor_code)
-        company = Company.objects.get(id=company_id)
+        with transaction.atomic():
+            product_id = validated_data['product_id']
+            company_id = self.context['company_id']
+            shelf_name = validated_data['shelf_name']
+            stock = validated_data['stock']
+            
+            product = Product.objects.get(id=product_id)
+            company = Company.objects.get(id=company_id)
 
-        shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)      
-        shelf.stock = F("stock") + stock
-        shelf.save()
+            shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)      
+            shelf.stock += stock
+            shelf.save()
 
-        warehouse_history, created = WarehouseHistory.objects.get_or_create(company=company,product=product,shelf=shelf)
-        warehouse_history.stock = F("stock") + stock
-        warehouse_history.save()
+            warehouse_history, created = WarehouseHistory.objects.get_or_create(company=company,product=product,shelf=shelf)
+            warehouse_history.stock += stock
+            warehouse_history.save()
 
-        return warehouse_history
+            return warehouse_history
 
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
