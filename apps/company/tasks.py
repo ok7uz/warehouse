@@ -173,7 +173,10 @@ def update_recomendation_supplier(company):
             sale_per_day = sale/last_sale_days
             need_product = floor(sale_per_day*next_sale_days)
             all_quantity = sorting + stock + shelf
-            days_left = floor(all_quantity/sale_per_day)
+            try:
+                days_left = floor(all_quantity/sale_per_day)
+            except:
+                days_left = 0
             difference = need_product - all_quantity
 
             if difference > 0:
