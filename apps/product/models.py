@@ -146,6 +146,7 @@ class Recommendations(models.Model):
         db_table = "recommendations"
         verbose_name = "Рекомендации"
         ordering = ["quantity"]
+        unique_together = ['company', 'product']
 
 class InProduction(models.Model):
     

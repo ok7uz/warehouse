@@ -53,7 +53,10 @@ def update_recomendations(company):
                 stock = 0
             
             avg_sale = total_sale/last_sale_days
-            days_left = floor((shelf_stock + sorting + stock)/avg_sale)
+            try:
+                days_left = floor((shelf_stock + sorting + stock)/avg_sale)
+            except:
+                days_left = 0
             need_stock = int(round(avg_sale*next_sale_days))
             recommend = need_stock - (shelf_stock + sorting + stock)
             
