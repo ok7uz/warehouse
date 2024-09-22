@@ -187,3 +187,22 @@ class WarehouseHistory(models.Model):
     def __str__(self) -> str:
         return self.product.vendor_code
     
+class RecomamandationSupplier(models.Model):
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=0)
+    days_left = models.IntegerField(default=0)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    
+    MARKETPLACE_CHOICES = [
+    ('wildberries', 'Wildberries'),
+    ('ozon', 'Ozon'),
+    ('yandexmarket', 'YandexMarket'),
+    ]
+    
+    marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
+
+    def __str__(self) -> str:
+        return self.product

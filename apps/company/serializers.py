@@ -9,7 +9,7 @@ from apps.accounts.models import CustomUser
 from apps.company.models import Company, CompanySettings
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
-        InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product
+        InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product, RecomamandationSupplier
 from django.core.paginator import Paginator
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -662,3 +662,48 @@ class SettingsSerializer(serializers.ModelSerializer):
         model=CompanySettings
         fields = ["last_sale_days","next_sale_days"]
         
+class RecomamandationSupplierSerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    data = serializers.SerializerMethodField()
+    is_red = serializers.SerializerMethodField()
+    class Meta:
+        model = RecomamandationSupplier
+        fields = ['product', 'data', "is_red"]
+
+    def get_product(self, obj):
+        return obj.product.vendor_code
+    
+    def get_data(self,obj):
+        product = obj.product
+        market = self.context.get("market")
+        rec = RecomamandationSupplier.objects.filter(product=product,marketplace_type__icontains=market)
+        result = []
+        for item in rec:
+            region_name = item.warehouse.region_name
+            if not region_name:
+                region_name = item.warehouse.oblast_okrug_name
+            days_left = item.days_left
+            quantity = item.quantity
+            
+            dc = {
+                "region_name": region_name,
+                "quantity": quantity,
+                "days_left": days_left
+            }
+            result.append(dc)
+        return result
+    
+    def get_is_red(self, obj):
+        market = self.context.get("market")
+        all_quantity = WarehouseHistory.objects.filter(product=obj.product)
+        if all_quantity.exists():
+            all_quantity = all_quantity.aggregate(total=Sum("stock"))["total"] 
+        else:
+            all_quantity = 0
+        rec = RecomamandationSupplier.objects.filter(product=obj.product,marketplace_type__icontains=market)
+        if rec.exists():
+            rec = rec.aggregate(total=Sum("quantity"))["total"] 
+        else:
+            rec = 0
+
+        return all_quantity < rec

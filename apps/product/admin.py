@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock, \
-      Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory
+      Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory, RecomamandationSupplier
 from django.db.models import Count
 from django_celery_results.models import TaskResult
 
@@ -58,7 +58,8 @@ class WareHouseAdminView(admin.ModelAdmin):
     
 @admin.register(WarehouseForStock)
 class WareHouseForStockAdminView(admin.ModelAdmin):
-    search_fields=["name"]
+    search_fields=["id","name"]
+    list_display = ["id","name"]
     list_filter = ["marketplace_type"]
     
 @admin.register(Recommendations)
@@ -100,3 +101,13 @@ class WarehouseHistoryAdminView(admin.ModelAdmin):
 
     def vendor_code(self, recommandations: Recommendations):
         return recommandations.product.vendor_code
+
+@admin.register(RecomamandationSupplier)
+class RecomamandationSupplierAdminView(admin.ModelAdmin):
+    list_display =["id", "vendor_code", "days_left","quantity", "marketplace_type"]
+    search_filter = ["product__vendor_code"]
+    list_filter = ["marketplace_type"]
+
+    def vendor_code(self, recommandations: RecomamandationSupplier):
+        return recommandations.product.vendor_code
+

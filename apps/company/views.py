@@ -10,13 +10,13 @@ from rest_framework.views import APIView
 from django_celery_results.models import TaskResult
 
 from apps.company.models import Company, CompanySettings
-from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory
+from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory, RecomamandationSupplier
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
     SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
-    SettingsSerializer
-from .tasks import update_recomendations
+    SettingsSerializer, RecomamandationSupplierSerializer
+from .tasks import update_recomendations, update_recomendation_supplier
 
 COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
@@ -498,7 +498,8 @@ class CalculationRecommendationView(APIView):
         )
     def get(self, request, company_id):
         company = get_object_or_404(Company, id=company_id)
-        task = update_recomendations.delay(company_id)
+        task = update_recomendation_supplier.delay(company_id)
+        update_recomendations.delay(company_id)
         return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
     
 class CheckTaskView(APIView):
@@ -518,3 +519,39 @@ class CheckTaskView(APIView):
             return Response({"message": "Not found task"},status.HTTP_400_BAD_REQUEST)
         return Response({"status": task_result.status, "result": task_result.result},status.HTTP_200_OK)
     
+
+class RecomamandationSupplierView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description="Get all Recomendation Supplier",
+        tags=['Recomendation Supplier (Рекомендации отгрузок)'],
+        responses={200: WarehouseHistorySerializer(many=True)},
+        parameters=COMPANY_WAREHOUSE_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket'])]
+    )
+    def get(self, request: Request, company_id):
+        
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        article = request.query_params.get("article","")
+        sort = request.query_params.get('sort', "")
+        service = request.query_params.get('service', "")
+
+        company = get_object_or_404(Company,id=company_id)
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            sorting_warehouse = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
+        else:
+            sorting_warehouse = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).distinct("product")
+        context = {"market": service}
+        serializer = RecomamandationSupplierSerializer(sorting_warehouse, context=context, many=True)
+        if sort and sort in ["-1", "1"]:
+            ordering_by_quantity = False if sort =="-1" else True
+            data = sorted(serializer.data,key=lambda item: sum(d['quantity'] for d in item['data']), reverse=ordering_by_quantity)
+        else:
+            data = serializer.data
+        paginator = Paginator(data, per_page=page_size)
+        page = paginator.get_page(page)
+        count = paginator.count
+        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
