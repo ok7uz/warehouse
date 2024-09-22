@@ -154,7 +154,7 @@ class InProduction(models.Model):
     manufacture = models.PositiveIntegerField()
     produced = models.PositiveIntegerField(default=0)
     company = models.ForeignKey(Company,on_delete=models.CASCADE)
-    recommendations = models.ForeignKey(Recommendations,on_delete=models.CASCADE)
+    recommendations = models.ForeignKey(Recommendations,on_delete=models.SET_NULL,null=True)
 
     def __str__(self) -> str:
         return self.product.vendor_code

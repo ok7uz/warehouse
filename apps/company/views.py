@@ -503,12 +503,15 @@ class CalculationRecommendationView(APIView):
     
 class CheckTaskView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    
     @extend_schema(
     description='Get the status of the recommendation calculation process',
     tags=["Recomamandations"],
     responses={200: {"message": "Calculation started", "task_id": 465456}}
         )
+    
     def get(self, request, task_id):
+        
         try:
             task_result = TaskResult.objects.get(task_id=task_id)
         except TaskResult.DoesNotExist:

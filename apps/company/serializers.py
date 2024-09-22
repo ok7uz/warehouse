@@ -560,8 +560,12 @@ class SortingToWarehouseSeriallizer(serializers.ModelSerializer):
 
         shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)
         
-        shelf.stock = F("stock") + stock
+        shelf.stock += stock
         shelf.save()
+        history, created = WarehouseHistory.objects.get_or_create(shelf=shelf,product=product,company=company)
+        history.stock += stock
+        history.save()
+
         
         return sorting_warehouse
 
