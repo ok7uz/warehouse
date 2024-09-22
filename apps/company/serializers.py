@@ -1,6 +1,7 @@
 import datetime
 
-from django.db.models import Sum, Count, Max, F
+from django.db.models import Sum, Count, Max
+
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 from django.db import transaction
@@ -666,44 +667,54 @@ class RecomamandationSupplierSerializer(serializers.ModelSerializer):
     product = serializers.SerializerMethodField()
     data = serializers.SerializerMethodField()
     is_red = serializers.SerializerMethodField()
+
     class Meta:
         model = RecomamandationSupplier
         fields = ['product', 'data', "is_red"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initialize_cache()
+
+    def initialize_cache(self):
+        market = self.context.get("market")
+        products = [o.product for o in self.instance]
+
+        # Pre-calculate totals for `get_is_red`
+        all_totals = WarehouseHistory.objects.filter(
+            product__in=products
+        ).aggregate(total=Sum("stock"))["total"] or 0
+
+        rec_totals = RecomamandationSupplier.objects.filter(
+            product__in=products, marketplace_type__icontains=market
+        ).aggregate(total=Sum("quantity"))["total"] or 0
+
+        self._cached_totals = all_totals < rec_totals
+
+        # Cache data for `get_data`
+        self._cached_data = RecomamandationSupplier.objects.filter(
+            product__in=products, marketplace_type__icontains=market
+        ).select_related('warehouse').annotate(
+            total_quantity=Sum('quantity'),
+            total_days_left=Sum('days_left')
+        )
+
     def get_product(self, obj):
         return obj.product.vendor_code
-    
-    def get_data(self,obj):
-        product = obj.product
-        market = self.context.get("market")
-        rec = RecomamandationSupplier.objects.filter(product=product,marketplace_type__icontains=market)
-        result = []
-        for item in rec:
-            region_name = item.warehouse.region_name
-            if not region_name:
-                region_name = item.warehouse.oblast_okrug_name
-            days_left = item.days_left
-            quantity = item.quantity
-            
-            dc = {
-                "region_name": region_name,
-                "quantity": quantity,
-                "days_left": days_left
-            }
-            result.append(dc)
-        return result
-    
-    def get_is_red(self, obj):
-        market = self.context.get("market")
-        all_quantity = WarehouseHistory.objects.filter(product=obj.product)
-        if all_quantity.exists():
-            all_quantity = all_quantity.aggregate(total=Sum("stock"))["total"] 
-        else:
-            all_quantity = 0
-        rec = RecomamandationSupplier.objects.filter(product=obj.product,marketplace_type__icontains=market)
-        if rec.exists():
-            rec = rec.aggregate(total=Sum("quantity"))["total"] 
-        else:
-            rec = 0
 
-        return all_quantity < rec
+    def get_data(self, obj):
+        product = obj.product
+        result = self._cached_data.filter(product=product)
+        return [{
+            "region_name": item.warehouse.region_name or item.warehouse.oblast_okrug_name,
+            "quantity": item.total_quantity,
+            "days_left": item.total_days_left
+        } for item in result]
+
+    def get_is_red(self, obj):
+        return self._cached_totals
+    
+    def to_representation(self, instance):
+        return super().to_representation(instance)
+
+

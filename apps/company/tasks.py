@@ -138,8 +138,8 @@ def update_recomendation_supplier(company):
                     recomamand_supplier.days_left = days_left
                 else:
                     if recomamand_supplier.quantity - difference < 0:
-                        difference = difference - recomamand_supplier.quantity
-                        days_d = days_left - recomamand_supplier.days_left
+                        difference = difference
+                        days_d = days_left 
                         recomamand_supplier.quantity += difference
                         recomamand_supplier.days_left += days_d
                         recomamand_supplier.save()
@@ -190,8 +190,8 @@ def update_recomendation_supplier(company):
                     recomamand_supplier.days_left = days_left
                 else:
                     if recomamand_supplier.quantity - difference < 0:
-                        difference = difference - recomamand_supplier.quantity
-                        days_d = days_left - recomamand_supplier.days_left
+                        difference = difference
+                        days_d = days_left 
                         recomamand_supplier.quantity += difference
                         recomamand_supplier.days_left += days_d
                         recomamand_supplier.save()
@@ -245,8 +245,8 @@ def update_recomendation_supplier(company):
                     recomamand_supplier.days_left = days_left
                 else:
                     if recomamand_supplier.quantity - difference < 0:
-                        difference = difference - recomamand_supplier.quantity
-                        days_d = days_left - recomamand_supplier.days_left
+                        difference = difference
+                        days_d = days_left 
                         recomamand_supplier.quantity += difference
                         recomamand_supplier.days_left += days_d
                         recomamand_supplier.save()
