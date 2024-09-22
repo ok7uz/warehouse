@@ -32,9 +32,10 @@ def update_recomendations(company):
             product = Product.objects.get(id=int(product))
             warehouses = ProductStock.objects.filter(product=product).values_list("warehouse")
             
-            shelf_stock = shelf_stocks.filter(product=product).order_by("product").first()
-            if shelf_stock:
-                shelf_stock = shelf_stock['stock']
+            shelf_stock = shelf_stocks.filter(product=product).order_by("product")
+            if shelf_stock.exists():
+                shelf_stock = shelf_stock.first()
+                shelf_stock = shelf_stock['total_stock']
             else:
                 shelf_stock = 0
             sorting = sorting_stocks.filter(product=product).aggregate(total=Sum("unsorted"))["total"]

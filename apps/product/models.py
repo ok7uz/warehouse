@@ -205,4 +205,4 @@ class RecomamandationSupplier(models.Model):
     marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
 
     def __str__(self) -> str:
-        return self.product
+        return self.product.vendor_code
