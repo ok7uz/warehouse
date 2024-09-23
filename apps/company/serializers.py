@@ -672,49 +672,26 @@ class RecomamandationSupplierSerializer(serializers.ModelSerializer):
         model = RecomamandationSupplier
         fields = ['product', 'data', "is_red"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.initialize_cache()
-
-    def initialize_cache(self):
-        market = self.context.get("market")
-        products = [o.product for o in self.instance]
-
-        # Pre-calculate totals for `get_is_red`
-        all_totals = WarehouseHistory.objects.filter(
-            product__in=products
-        ).aggregate(total=Sum("stock"))["total"] or 0
-
-        rec_totals = RecomamandationSupplier.objects.filter(
-            product__in=products, marketplace_type__icontains=market
-        ).aggregate(total=Sum("quantity"))["total"] or 0
-
-        self._cached_totals = all_totals < rec_totals
-
-        # Cache data for `get_data`
-        self._cached_data = RecomamandationSupplier.objects.filter(
-            product__in=products, marketplace_type__icontains=market
-        ).select_related('warehouse').annotate(
-            total_quantity=Sum('quantity'),
-            total_days_left=Sum('days_left')
-        )
-
     def get_product(self, obj):
         return obj.product.vendor_code
 
     def get_data(self, obj):
         product = obj.product
-        result = self._cached_data.filter(product=product)
+        market = self.context.get("market")
+        result = RecomamandationSupplier.objects.filter(product=product, marketplace_type__icontains=market).select_related('warehouse').values('warehouse__region_name','days_left','quantity','warehouse__oblast_okrug_name')
         return [{
-            "region_name": item.warehouse.region_name or item.warehouse.oblast_okrug_name,
-            "quantity": item.total_quantity,
-            "days_left": item.total_days_left
+            "region_name": item["warehouse__region_name"] or item["warehouse__oblast_okrug_name"],
+            "quantity": item["quantity"],
+            "days_left": item["quantity"]
         } for item in result]
 
     def get_is_red(self, obj):
-        return self._cached_totals
-    
-    def to_representation(self, instance):
-        return super().to_representation(instance)
+        market = self.context.get("market")
+        product = obj.product
+        rec = RecomamandationSupplier.objects.filter(product=product, marketplace_type__icontains=market).aggregate(total=Sum("quantity"))
+        rec = rec['total'] or 0
+        warehouse_s = WarehouseHistory.objects.filter(product=product).aggregate(total=Sum("stock"))
+        warehouse_s = warehouse_s["total"] or 0
+        return rec > warehouse_s
 
 
