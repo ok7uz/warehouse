@@ -15,6 +15,7 @@ urlpatterns = [
     path('companies/<uuid:company_id>/settings/', SettingsView.as_view(), name='company-settings'), 
     path('companies/<uuid:company_id>/calculate-recomand/', CalculationRecommendationView.as_view(), name='calculate-recomand'), 
     path('companies/<uuid:company_id>/supplier/', RecomamandationSupplierView.as_view(), name='supplier'), 
+    path('companies/<uuid:company_id>/priority/', PriorityShipmentsView.as_view(), name='priority'), 
     path('companies/<uuid:task_id>/check-calculate/', CheckTaskView.as_view(), name='check-calculate'), 
     path('companies/<uuid:shelf_id>/update-shelf/', UpdateShelfView.as_view(), name='update-shelf'), 
     path('companies/<uuid:inproduction_id>/update-prodcution/', UpdateInProductionView.as_view(), name='company-update-inproductions'), 

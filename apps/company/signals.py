@@ -4,9 +4,12 @@ from apps.product.models import InProduction, Recommendations, SortingWarehouse,
 from datetime import datetime
 
 @receiver(post_save,sender=Recommendations)
-def auto_delete_object(sender, instance: Recommendations, **kwargs):
+def auto_delete_object(sender, instance: Recommendations, created, **kwargs):
     if instance.quantity <= instance.application_for_production:
         instance.delete()
+    if not created:
+        instance.quantity -= instance.application_for_production
+        instance.save()
 
 @receiver(post_save, sender=InProduction)
 def auto_delete_object(sender, instance: InProduction, created, **kwargs):

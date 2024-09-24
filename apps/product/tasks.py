@@ -519,7 +519,6 @@ def find_barcode(vendor_code, company_id, api_key):
             return 0
     else: 
         return 0
-    
         
 @app.task
 def update_yandex_market_sales():

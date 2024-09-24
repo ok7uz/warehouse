@@ -10,13 +10,13 @@ from rest_framework.views import APIView
 from django_celery_results.models import TaskResult
 
 from apps.company.models import Company, CompanySettings
-from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory, RecomamandationSupplier
+from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory, RecomamandationSupplier, PriorityShipments
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
     SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
-    SettingsSerializer, RecomamandationSupplierSerializer
-from .tasks import update_recomendations, update_recomendation_supplier
+    SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer
+from .tasks import update_recomendations, update_recomendation_supplier, update_priority
 
 COMPANY_SALES_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
@@ -226,7 +226,8 @@ class InProductionView(APIView):
     @extend_schema(
         description='Create company inproductions (В производстве) via recomendations ids',
         tags=["In Productions (В производстве)"],
-        responses={201: InProductionSerializer(many=True)},
+        responses={201: InProductionSerializer(),
+                   200: InProductionSerializer()},
         request=InProductionSerializer,
         examples=[
         OpenApiExample(
@@ -242,6 +243,13 @@ class InProductionView(APIView):
     ])
     def post(self,request: Request, company_id):
         data = request.data
+        in_productions = InProduction.objects.filter(recommendations=data['recommendations_id'])
+        if in_productions.exists():
+            in_productions.first().manufacture += data['application_for_production']
+            in_productions.first().save()
+            serializer = InProductionSerializer(in_productions)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
         serializer = InProductionSerializer(data=data)
         if serializer.is_valid():
             in_productions = serializer.save()
@@ -500,6 +508,7 @@ class CalculationRecommendationView(APIView):
         company = get_object_or_404(Company, id=company_id)
         task = update_recomendation_supplier.delay(company_id)
         update_recomendations.delay(company_id)
+        update_priority.delay(company_id)
         return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
     
 class CheckTaskView(APIView):
@@ -541,11 +550,11 @@ class RecomamandationSupplierView(APIView):
         
         if sort and sort in ["Z-A", "A-Z"]:
             ordering_by_alphabit = "-" if sort =="Z-A" else ""
-            sorting_warehouse = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
+            supplier = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
         else:
-            sorting_warehouse = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).distinct("product")
+            supplier = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).distinct("product")
         context = {"market": service}
-        serializer = RecomamandationSupplierSerializer(sorting_warehouse, context=context, many=True)
+        serializer = RecomamandationSupplierSerializer(supplier, context=context, many=True)
         if sort and sort in ["-1", "1"]:
             ordering_by_quantity = False if sort =="-1" else True
             data = sorted(serializer.data,key=lambda item: sum(d['quantity'] for d in item['data']), reverse=ordering_by_quantity)
@@ -555,3 +564,84 @@ class RecomamandationSupplierView(APIView):
         page = paginator.get_page(page)
         count = paginator.count
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+
+COMPANY_PRIORITY_PARAMETRS = [
+    OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
+    OpenApiParameter('page_size', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page size"),
+    OpenApiParameter('sort', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Sorting",enum=['travel_days', '-travel_days',"A-Z","Z-A",'arrive_days', '-arrive_days','sales', '-sales','shipments', '-shipments','sales_share', '-sales_share','shipments_share', '-shipments_share','shipping_priority', '-shipping_priority']),
+    OpenApiParameter('region_name', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Search by article"),
+]
+
+class PriorityShipmentsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description="Get all Priority Shipments",
+        tags=['Priority Shipments (Приоритет отгрузок)'],
+        responses={200: PriorityShipmentsSerializer(many=True)},
+        parameters=COMPANY_PRIORITY_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket'])]
+    )
+    def get(self, request: Request, company_id):
+        
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        warehouse = request.query_params.get("region_name","")
+        sort = request.query_params.get('sort', "")
+        service = request.query_params.get('service', "")
+
+        company = get_object_or_404(Company,id=company_id)
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{ordering_by_alphabit}warehouse__region_name")
+            
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{ordering_by_alphabit}warehouse__oblast_okrug_name")
+
+        elif sort and "travel_days" in sort:
+            reverse = "-" if "-" in sort  else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+        elif sort and "arrive_days" in sort:
+            reverse = "-" if "-" in sort  else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}arrive_days")
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+        elif sort and "sales" in sort:
+            reverse = "-" if "-" in sort  else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}sales")
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+        elif sort and "shipments" in sort:
+            reverse = "-" if "-" in sort  else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}shipments")
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+        elif sort and "sales_share" in sort:
+            reverse = "-" if "-" in sort  else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}sales_share")
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+        elif sort and "shipments_share" in sort:
+            reverse = "-" if "-" in sort  else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}shipments_share")
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+        elif sort and "shipping_priority" in sort:
+            reverse = "-" if "-" in sort  else ""
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}shipping_priority")
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse,marketplace_type__icontains=service).order_by(f"{reverse}travel_days")
+        else:
+            priority = PriorityShipments.objects.filter(company=company, warehouse__region_name__contains=warehouse,marketplace_type__icontains=service)
+            if not priority.exists():
+                priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse)
+        
+        serializer = PriorityShipmentsSerializer(priority, many=True)
+        paginator = Paginator(serializer.data, per_page=page_size)
+        page = paginator.get_page(page)
+        count = paginator.count
+        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+    

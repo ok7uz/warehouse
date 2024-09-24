@@ -159,7 +159,7 @@ class InProduction(models.Model):
 
     def __str__(self) -> str:
         return self.product.vendor_code
-    
+      
 class Shelf(models.Model):
     
     id = models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False, unique=True)
@@ -207,3 +207,30 @@ class RecomamandationSupplier(models.Model):
 
     def __str__(self) -> str:
         return self.product.vendor_code
+    
+class PriorityShipments(models.Model):
+    
+    warehouse = models.ForeignKey(Warehouse,on_delete=models.CASCADE)
+    travel_days = models.IntegerField(default=0)
+    arrive_days = models.IntegerField(default=0)
+    sales = models.IntegerField(default=0)
+    shipments = models.IntegerField(default=0)
+    sales_share = models.FloatField(default=0)
+    shipments_share = models.FloatField(default=0)
+    shipping_priority = models.FloatField(default=0)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+
+    MARKETPLACE_CHOICES = [
+    ('wildberries', 'Wildberries'),
+    ('ozon', 'Ozon'),
+    ('yandexmarket', 'YandexMarket'),
+    ]
+    
+    marketplace_type = models.CharField(max_length=50, choices=MARKETPLACE_CHOICES)
+
+    def __str__(self) -> str:
+        return self.warehouse.region_name or self.warehouse.oblast_okrug_name
+    
+    class Meta:
+        unique_together = ["company", "warehouse", "marketplace_type"]
+

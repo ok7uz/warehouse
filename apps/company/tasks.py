@@ -29,7 +29,13 @@ def update_recomendations(company):
             
             product = sale['product']
             total_sale = sale['total_sales']
-            product = Product.objects.get(id=int(product))
+            barcode = Product.objects.get(id=int(product)).barcode
+            product = Product.objects.filter(id=barcode,marketplace_type="wildberries")
+            
+            if product.exists():
+                product = product.first()
+            else:
+                product = Product.objects.get(id=int(product))
             warehouses = ProductStock.objects.filter(product=product).values_list("warehouse")
             
             shelf_stock = shelf_stocks.filter(product=product).order_by("product")
@@ -256,5 +262,47 @@ def update_recomendation_supplier(company):
 
     return True
 
-            
+@app.task
+def update_priority(company_id):
+    company = Company.objects.get(id=company_id)
     
+    warehouse_product_counts = ProductSale.objects.filter(company=company).values('warehouse',"marketplace_type").annotate(product_count=Count('product', distinct=True)).order_by('warehouse')
+    total_sale = sum(item['product_count'] for item in warehouse_product_counts)
+    
+    warehouse_product_totals = RecomamandationSupplier.objects.filter(company=company).values('warehouse',"marketplace_type").annotate(total_quantity=Sum('quantity'))
+    total_shipments = sum(item['total_quantity'] for item in warehouse_product_totals)
+    
+    for item in warehouse_product_counts:
+        product = item["product_count"]
+        warehouse = item['warehouse']
+        marketplace_type = item['marketplace_type']
+        warehouse = Warehouse.objects.get(id=warehouse)
+        shipments = warehouse_product_totals.filter(warehouse=warehouse,marketplace_type=marketplace_type)
+        
+        if shipments.exists():
+            shipments = shipments.aggregate(total=Sum("total_quantity"))['total']
+        else:
+            shipments = 0
+        
+        share_sale = (product/total_sale)*100
+        share_shipments = (shipments/total_shipments)*100
+        shipping_priority = share_shipments/share_sale
+
+        priority, created = PriorityShipments.objects.get_or_create(company=company,warehouse=warehouse, marketplace_type=marketplace_type)
+        if created:
+            priority.sales = product
+            priority.shipments = shipments
+            priority.sales_share = share_sale
+            priority.shipments_share = share_shipments
+            priority.shipping_priority = shipping_priority
+            priority.save()
+        else:
+            if priority.sales - product < 0 or priority.shipments - shipments < 0:
+                priority.sales = product
+                priority.shipments = shipments
+                priority.sales_share = share_sale
+                priority.shipments_share = share_shipments
+                priority.shipping_priority = shipping_priority
+                priority.save()
+
+    return True

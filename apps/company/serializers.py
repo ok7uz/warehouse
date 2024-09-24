@@ -10,7 +10,7 @@ from apps.accounts.models import CustomUser
 from apps.company.models import Company, CompanySettings
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
-        InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product, RecomamandationSupplier
+        InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product, RecomamandationSupplier, PriorityShipments
 from django.core.paginator import Paginator
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -686,6 +686,7 @@ class RecomamandationSupplierSerializer(serializers.ModelSerializer):
         } for item in result]
 
     def get_is_red(self, obj):
+        
         market = self.context.get("market")
         product = obj.product
         rec = RecomamandationSupplier.objects.filter(product=product, marketplace_type__icontains=market).aggregate(total=Sum("quantity"))
@@ -694,4 +695,11 @@ class RecomamandationSupplierSerializer(serializers.ModelSerializer):
         warehouse_s = warehouse_s["total"] or 0
         return rec > warehouse_s
 
+class PriorityShipmentsSerializer(serializers.ModelSerializer):
+    region_name = serializers.SerializerMethodField()
+    class Meta:
+        model = PriorityShipments
+        fields = ["id", "region_name", "travel_days","arrive_days", "sales", "sales_share","shipments_share","shipping_priority"]
 
+    def get_region_name(self, obj):
+        return obj.warehouse.region_name or obj.warehouse.oblast_okrug_name
