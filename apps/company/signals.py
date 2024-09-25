@@ -13,7 +13,7 @@ def auto_delete_object(sender, instance: Recommendations, created, **kwargs):
 
 @receiver(post_save, sender=InProduction)
 def auto_delete_object(sender, instance: InProduction, created, **kwargs):
-    if instance.manufacture <= 0:
+    if instance.manufacture <= instance.produced:
         instance.delete()
     if not created:
         sorting, created_s = SortingWarehouse.objects.get_or_create(company=instance.company,product=instance.product)
