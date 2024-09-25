@@ -1,7 +1,8 @@
 from django.contrib import admin
 
 from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock, \
-      Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory, RecomamandationSupplier, PriorityShipments
+      Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory, RecomamandationSupplier, PriorityShipments, \
+      ShipmentHistory, Shipment
 from django.db.models import Count
 from django_celery_results.models import TaskResult
 
@@ -120,3 +121,14 @@ class PriorityShipmentsrAdminView(admin.ModelAdmin):
 
     def vendor_code(self, recommandations: PriorityShipments):
         return recommandations.warehouse.region_name or recommandations.warehouse.oblast_okrug_name
+
+@admin.register(Shipment)
+class PriorityShipmentsrAdminView(admin.ModelAdmin):
+    
+    list_display =["id", "vendor_code", "shipment"]
+    search_fields = ["product__vendor_code"]
+    list_filter = ["company"]
+
+    def vendor_code(self, recommandations: Shipment):
+        return recommandations.product.vendor_code
+

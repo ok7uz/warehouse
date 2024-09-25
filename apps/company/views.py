@@ -10,12 +10,13 @@ from rest_framework.views import APIView
 from django_celery_results.models import TaskResult
 
 from apps.company.models import Company, CompanySettings
-from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory, RecomamandationSupplier, PriorityShipments
+from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory, RecomamandationSupplier, PriorityShipments, \
+Shipment, ShipmentHistory
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
     SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
-    SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer
+    SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer, ShipmentSerializer
 from .tasks import update_recomendations, update_recomendation_supplier, update_priority
 
 COMPANY_SALES_PARAMETRS = [
@@ -645,3 +646,24 @@ class PriorityShipmentsView(APIView):
         count = paginator.count
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
+class ShipmentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @extend_schema(
+        description="Get all Shipments",
+        tags=['Shipments (Отгрузок)'],
+        responses={200: PriorityShipmentsSerializer(many=True)},
+        parameters=COMPANY_PRIORITY_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket'])]
+    )
+    def get(self, request, company_id):
+
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+
+        company = get_object_or_404(Company,id=company_id)
+        shipments = Shipment.objects.filter(company=company)
+        serializer = ShipmentSerializer(shipments, many=True)
+        paginator = Paginator(serializer.data, per_page=page_size)
+        page = paginator.get_page(page)
+        count = paginator.count
+        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)

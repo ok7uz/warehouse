@@ -234,6 +234,23 @@ class PriorityShipments(models.Model):
     class Meta:
         unique_together = ["company", "warehouse", "marketplace_type"]
 
-class Shipments(models.Model):
-    recomamand_supplier = models.ForeignKey(RecomamandationSupplier)
+class Shipment(models.Model):
+    
+    recomamand_supplier = models.ForeignKey(RecomamandationSupplier,on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    shipment = models.IntegerField(default=0)
+    company = models.ForeignKey(Company,on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return self.product.vendor_code
+    
+class ShipmentHistory(models.Model):
+    
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    date = models.DateTimeField(auto_now_add=True)
+    quantity = models.IntegerField(default=0)
+    shipment = models.ForeignKey(Shipment,on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return self.product.vendor_code

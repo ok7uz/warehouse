@@ -10,7 +10,8 @@ from apps.accounts.models import CustomUser
 from apps.company.models import Company, CompanySettings
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
-        InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product, RecomamandationSupplier, PriorityShipments
+        InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product, RecomamandationSupplier, PriorityShipments, \
+        Shipment, ShipmentHistory
 from django.core.paginator import Paginator
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -403,6 +404,11 @@ class RecommendationsSerializer(serializers.Serializer):
 
     def get_product(self, instance):
         return instance.product.vendor_code
+    
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep["application_for_production"] = 0
+        return rep
 
 class InProductionSerializer(serializers.Serializer):
     
@@ -703,3 +709,36 @@ class PriorityShipmentsSerializer(serializers.ModelSerializer):
 
     def get_region_name(self, obj):
         return obj.warehouse.region_name or obj.warehouse.oblast_okrug_name
+    
+class ShipmentSerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    in_warehouse = serializers.SerializerMethodField()
+    in_shelf = serializers.SerializerMethodField()
+    shipment = serializers.IntegerField()
+
+    class Meta:
+        model = Shipment
+        fields = ['id',"product", "in_shelf", 'in_warehouse', 'shipment']
+
+    def get_product(self,obj):
+        return obj.product.vendor_code
+    
+    def get_in_warehouse(self,obj):
+        product = obj.product
+        company = obj.company
+        in_warehouse = WarehouseHistory.objects.filter(product=product, company=company)
+        
+        if in_warehouse.exists():
+            in_warehouse = in_warehouse.aggregate(total=Sum("stock"))['total']
+            return in_warehouse
+        return 0
+    
+    def get_in_shelf(self,obj):
+        product = obj.product
+        company = obj.company
+        in_shelf = Shelf.objects.filter(product=product, company=company).values("shelf_name","stock")
+        
+        return in_shelf
+    
+    
+        
