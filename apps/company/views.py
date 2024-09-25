@@ -188,9 +188,9 @@ class RecommendationsView(APIView):
         else:
             recommendations = Recommendations.objects.filter(company=company, product__vendor_code__contains=article)
         
-        serializer = RecommendationsSerializer(recommendations,many=True)
-        paginator = Paginator(serializer.data, per_page=page_size)
+        paginator = Paginator(recommendations, per_page=page_size)
         page = paginator.get_page(page)
+        serializer = RecommendationsSerializer(page,many=True)
         return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
 
 class InProductionView(APIView):
@@ -219,9 +219,10 @@ class InProductionView(APIView):
         else:
             in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article)
         
-        serializer = InProductionSerializer(in_production,many=True)
-        paginator = Paginator(serializer.data, per_page=page_size)
+        
+        paginator = Paginator(in_production, per_page=page_size)
         page = paginator.get_page(page)
+        serializer = InProductionSerializer(page,many=True)
         return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
     
     @extend_schema(
@@ -339,9 +340,10 @@ class SortingWarehouseView(APIView):
         else:
             sorting_warehouse = SortingWarehouse.objects.filter(company=company, product__vendor_code__contains=article)
         
-        serializer = SortingWarehouseSerializer(sorting_warehouse,many=True)
-        paginator = Paginator(serializer.data, per_page=page_size)
+        
+        paginator = Paginator(sorting_warehouse, per_page=page_size)
         page = paginator.get_page(page)
+        serializer = SortingWarehouseSerializer(page,many=True)
         return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
     
     @extend_schema(
@@ -392,11 +394,12 @@ class WarehouseHistoryView(APIView):
         else:
             sorting_warehouse = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).distinct("product")
         context = {"date_from": date_from, "date_to": date_to}
-        serializer = WarehouseHistorySerializer(sorting_warehouse, context={'dates': context}, many=True)
         
-        paginator = Paginator(serializer.data, per_page=page_size)
+        
+        paginator = Paginator(sorting_warehouse, per_page=page_size)
         page = paginator.get_page(page)
         count = paginator.count
+        serializer = WarehouseHistorySerializer(page, context={'dates': context}, many=True)
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
 class UpdateShelfView(APIView):
@@ -442,10 +445,9 @@ class InventoryView(APIView):
             in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}stock")
         else:
             in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article)
-        
-        serializer = InventorySerializer(in_production,many=True)
-        paginator = Paginator(serializer.data, per_page=page_size)
+        paginator = Paginator(in_production, per_page=page_size)
         page = paginator.get_page(page)
+        serializer = InventorySerializer(page,many=True)
         count = paginator.count
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
@@ -554,16 +556,17 @@ class RecomamandationSupplierView(APIView):
         else:
             supplier = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).distinct("product")
         context = {"market": service}
-        serializer = RecomamandationSupplierSerializer(supplier, context=context, many=True)
+        
+        paginator = Paginator(supplier, per_page=page_size)
+        page = paginator.get_page(page)
+        count = paginator.count
+        serializer = RecomamandationSupplierSerializer(page, context=context, many=True)
         if sort and sort in ["-1", "1"]:
             ordering_by_quantity = False if sort =="-1" else True
             data = sorted(serializer.data,key=lambda item: sum(d['quantity'] for d in item['data']), reverse=ordering_by_quantity)
         else:
             data = serializer.data
-        paginator = Paginator(data, per_page=page_size)
-        page = paginator.get_page(page)
-        count = paginator.count
-        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+        return Response({"results": data, "product_count": count}, status=status.HTTP_200_OK)
 
 COMPANY_PRIORITY_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
@@ -639,11 +642,11 @@ class PriorityShipmentsView(APIView):
             if not priority.exists():
                 priority = PriorityShipments.objects.filter(company=company, warehouse__oblast_okrug_name__contains=warehouse)
         
-        serializer = PriorityShipmentsSerializer(priority, many=True)
-        paginator = Paginator(serializer.data, per_page=page_size)
-        page = paginator.get_page(page)
+        paginator = Paginator(priority, per_page=page_size)
+        page_obj = paginator.get_page(page)
+        serializer = PriorityShipmentsSerializer(page_obj, many=True)
         count = paginator.count
-        return Response({"results": page, "product_count": count}, status=status.HTTP_200_OK)
+        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
 class ShipmentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -671,8 +674,9 @@ class ShipmentView(APIView):
         else:
             shipments = Shipment.objects.filter(company=company,product__vendor_code__contains=article)
         
-        serializer = ShipmentSerializer(shipments, many=True)
-        paginator = Paginator(serializer.data, per_page=page_size)
+        
+        paginator = Paginator(shipments, per_page=page_size)
         page = paginator.get_page(page)
         count = paginator.count
+        serializer = ShipmentSerializer(page, many=True)
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
