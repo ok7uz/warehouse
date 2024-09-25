@@ -5,7 +5,7 @@ from datetime import datetime
 
 @receiver(post_save,sender=Recommendations)
 def auto_delete_object(sender, instance: Recommendations, created, **kwargs):
-    if instance.quantity <= instance.application_for_production:
+    if instance.quantity <= 0:
         instance.delete()
     if not created:
         instance.quantity -= instance.application_for_production
@@ -13,7 +13,7 @@ def auto_delete_object(sender, instance: Recommendations, created, **kwargs):
 
 @receiver(post_save, sender=InProduction)
 def auto_delete_object(sender, instance: InProduction, created, **kwargs):
-    if instance.produced >= instance.manufacture:
+    if instance.manufacture <= 0:
         instance.delete()
     if not created:
         sorting, created_s = SortingWarehouse.objects.get_or_create(company=instance.company,product=instance.product)

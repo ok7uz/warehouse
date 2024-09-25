@@ -234,3 +234,6 @@ class PriorityShipments(models.Model):
     class Meta:
         unique_together = ["company", "warehouse", "marketplace_type"]
 
+class Shipments(models.Model):
+    recomamand_supplier = models.ForeignKey(RecomamandationSupplier)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
