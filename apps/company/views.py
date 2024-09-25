@@ -653,15 +653,25 @@ class ShipmentView(APIView):
         description="Get all Shipments",
         tags=['Shipments (Отгрузок)'],
         responses={200: PriorityShipmentsSerializer(many=True)},
-        parameters=COMPANY_PRIORITY_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket'])]
+        parameters=COMPANY_WAREHOUSE_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket'])]
     )
     def get(self, request, company_id):
 
         page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 10))
+        page_size = int(request.query_params.get('page_size', 100))
+        article = request.query_params.get("article","")
+        sort = request.query_params.get('sort', "")
 
         company = get_object_or_404(Company,id=company_id)
-        shipments = Shipment.objects.filter(company=company)
+        if sort in ["A-Z", "Z-A"]:
+            sort = "-" if sort=="Z-A" else ""
+            shipments = Shipment.objects.filter(company=company,product__vendor_code__contains=article).order_by(f"{sort}product__vendor_code")
+        elif sort in ["-1", "1"]:
+            sort = "-" if sort=="-1" else ""
+            shipments = Shipment.objects.filter(company=company,product__vendor_code__contains=article).order_by(f"{sort}shipment")
+        else:
+            shipments = Shipment.objects.filter(company=company,product__vendor_code__contains=article)
+        
         serializer = ShipmentSerializer(shipments, many=True)
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
