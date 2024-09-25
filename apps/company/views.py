@@ -643,7 +643,7 @@ class PriorityShipmentsView(APIView):
         paginator = Paginator(serializer.data, per_page=page_size)
         page = paginator.get_page(page)
         count = paginator.count
-        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+        return Response({"results": page, "product_count": count}, status=status.HTTP_200_OK)
     
 class ShipmentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
