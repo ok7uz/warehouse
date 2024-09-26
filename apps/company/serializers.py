@@ -845,4 +845,4 @@ class CreateShipmentHistorySerializer(serializers.Serializer):
                 shipment.save()
                 shelf_stock.delete()
 
-        
+        return shipment

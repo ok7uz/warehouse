@@ -17,7 +17,7 @@ from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSe
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
     SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
     SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer, ShipmentSerializer,\
-    ShipmentCreateSerializer, ShipmentHistorySerializer
+    ShipmentCreateSerializer, ShipmentHistorySerializer, CreateShipmentHistorySerializer
 from .tasks import update_recomendations, update_recomendation_supplier, update_priority
 
 COMPANY_SALES_PARAMETRS = [
@@ -254,7 +254,7 @@ class InProductionView(APIView):
         if in_productions.exists():
             in_productions.first().manufacture += data['application_for_production']
             in_productions.first().save()
-            serializer = InProductionSerializer(in_productions)
+            serializer = InProductionSerializer(in_productions.first())
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         serializer = InProductionSerializer(data=data)
@@ -747,3 +747,10 @@ class ShipmentHistoryView(APIView):
         count = paginator.count
         serializer = ShipmentHistorySerializer(page, context={'dates': context}, many=True)
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+    
+    def post(self, request, company_id):
+        data = request.data
+        serializer = CreateShipmentHistorySerializer(data=data)
+        if serializer.is_valid():
+            ship_his = serializer.save()
+            serializer = ShipmentHistorySerializer(ship_his)
