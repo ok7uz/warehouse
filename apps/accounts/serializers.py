@@ -135,3 +135,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
             instance.avatar = validated_data.get('avatar', instance.avatar)
         instance.save()
         return instance
+
+
+
+

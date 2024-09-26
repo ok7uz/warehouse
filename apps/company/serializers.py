@@ -676,7 +676,7 @@ class RecomamandationSupplierSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RecomamandationSupplier
-        fields = ['product', 'data', "is_red"]
+        fields = ["id",'product', 'data', "is_red"]
 
     def get_product(self, obj):
         return obj.product.vendor_code
@@ -736,9 +736,111 @@ class ShipmentSerializer(serializers.ModelSerializer):
     def get_in_shelf(self,obj):
         product = obj.product
         company = obj.company
-        in_shelf = Shelf.objects.filter(product=product, company=company).values("shelf_name","stock")
+        in_shelf = Shelf.objects.filter(product=product, company=company).values("id","shelf_name","stock")
         
         return in_shelf
     
+class ShipmentCreateSerializer(serializers.Serializer):
+    recomamandation_supplier_ids = serializers.ListField(child=serializers.UUIDField())
+
+    def validate(self, data):
+
+        recomamandation_supplier_ids = data.get('recomamandation_supplier_ids')
+        ls = []
+        for item in recomamandation_supplier_ids:
+            if not RecomamandationSupplier.objects.filter(id=item).exists():
+                ls.append(f"Not found Recomamandation Supplier with UUID: {item}")
+        if ls:
+            raise serializers.ValidationError(ls)
+        return data
     
+    def create(self, validated_data):
         
+        recomamandation_supplier_ids = validated_data['recomamandation_supplier_ids']
+        recomamandation_supplier = RecomamandationSupplier.objects.filter(id__in=recomamandation_supplier_ids).values("id","product","company")
+        shipment = []
+        
+        for item in recomamandation_supplier:
+            product = item['product']
+            rec_sup = item['id']
+            company = item['company']
+            total = RecomamandationSupplier.objects.filter(product=product,company=company).aggregate(total=Sum("quantity"))['total']
+            
+            shipment.append(Shipment(recomamand_supplier_id=rec_sup,product_id=product,shipment=total,company_id=company))
+
+        return Shipment.objects.bulk_create(shipment,ignore_conflicts=True)
+
+class ShipmentHistorySerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+    data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ShipmentHistory
+        fields = ['product','data']
+
+    def get_product(self,obj):
+        return obj.product.vendor_code
+    
+    def get_data(self, obj):
+        
+        dates = self.context.get("dates")
+        date_from = dates.get("date_from")
+        date_to = dates.get("date_to")
+        date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
+        dc = {date.strftime("%Y-%m-%d"): 0 for date in date_range}
+
+        for date in date_range:
+            dc[date.strftime("%Y-%m-%d")] = ShipmentHistory.objects.filter(date__date=date, company=obj.company, product=obj.product).aggregate(total=Sum('quantity'))['total'] or 0
+        
+        return dc
+    
+class CreateShipmentHistorySerializer(serializers.Serializer):
+    shelf_ids = serializers.ListField(child=serializers.UUIDField())
+    shipment_id = serializers.IntegerField()
+
+    def validate(self, attrs):
+        
+        shipment = Shipment.objects.filter(id=attrs['shipment_id'])
+        if not shipment.exists():
+            raise serializers.ValidationError(f"Not fount shipment with: {attrs['shipment_id']}")
+        
+        shelf_ids = attrs['shelf_ids']
+        errors = []
+        for item in shelf_ids:
+            shelf = Shelf.objects.filter(id=item)
+            if not shelf.exists():
+                errors.append(f"Not fount shipment with: {item}")
+        if errors:
+            raise serializers.ValidationError(errors)
+        product = shipment.first().product
+        stock = WarehouseHistory.objects.filter(product__in=product).aggregate(total=Sum("stock"))['total'] or 0
+        
+        if stock < shipment.first().shipment:
+            raise serializers.ErrorDetail("Insufficient stock available for the shipment")
+        
+        shelfs = Shelf.objects.filter(id__in=attrs['shelf_ids']).order_by("stock")
+        ship_t = shipment.first().shipment
+        if shelfs.aggregate(total=Sum("stock"))["total"] < ship_t:
+            raise serializers.ErrorDetail("There is not enough product on the shelfs")
+        
+        return attrs
+    
+    def create(self, validated_data):
+        
+        shipment = Shipment.objects.get(id=validated_data['shipment_id'])
+        company = shipment.company
+        product = shipment.product
+        shelfs = Shelf.objects.filter(id__in=validated_data['shelf_ids']).order_by("stock")
+        ship_t = shipment.shipment
+        
+        for shelf_stock in shelfs:
+            if shelf_stock.stock >= ship_t:
+                shelf_stock.stock -= ship_t
+                shelf_stock.save()
+                hipment = ShipmentHistory.objects.create(company=company,product=product,quantity=ship_t)
+                shipment.delete()
+                break
+            else:
+                shipment.shipment -= shelf_stock.stock
+                shipment.save()
+                shelf_stock.delete()

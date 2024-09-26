@@ -16,6 +16,7 @@ urlpatterns = [
     path('companies/<uuid:company_id>/calculate-recomand/', CalculationRecommendationView.as_view(), name='calculate-recomand'), 
     path('companies/<uuid:company_id>/supplier/', RecomamandationSupplierView.as_view(), name='supplier'), 
     path('companies/<uuid:company_id>/shipment/', ShipmentView.as_view(), name='shipment'), 
+    path('companies/<uuid:company_id>/shipment-history/', ShipmentHistoryView.as_view(), name='shipment-history'), 
     path('companies/<uuid:company_id>/priority/', PriorityShipmentsView.as_view(), name='priority'), 
     path('companies/<uuid:task_id>/check-calculate/', CheckTaskView.as_view(), name='check-calculate'), 
     path('companies/<uuid:shelf_id>/update-shelf/', UpdateShelfView.as_view(), name='update-shelf'), 

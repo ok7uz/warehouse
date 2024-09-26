@@ -16,7 +16,8 @@ from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSe
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
     SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
-    SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer, ShipmentSerializer
+    SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer, ShipmentSerializer,\
+    ShipmentCreateSerializer, ShipmentHistorySerializer
 from .tasks import update_recomendations, update_recomendation_supplier, update_priority
 
 COMPANY_SALES_PARAMETRS = [
@@ -245,7 +246,11 @@ class InProductionView(APIView):
     ])
     def post(self,request: Request, company_id):
         data = request.data
+        rec = get_object_or_404(Recommendations, id=data['recommendations_id'])
+        rec.quantity -= data['application_for_production']
+        rec.save()
         in_productions = InProduction.objects.filter(recommendations=data['recommendations_id'])
+
         if in_productions.exists():
             in_productions.first().manufacture += data['application_for_production']
             in_productions.first().save()
@@ -537,7 +542,7 @@ class RecomamandationSupplierView(APIView):
     @extend_schema(
         description="Get all Recomendation Supplier",
         tags=['Recomendation Supplier (Рекомендации отгрузок)'],
-        responses={200: WarehouseHistorySerializer(many=True)},
+        responses={200: RecomamandationSupplierSerializer(many=True)},
         parameters=COMPANY_WAREHOUSE_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket'])]
     )
     def get(self, request: Request, company_id):
@@ -679,4 +684,62 @@ class ShipmentView(APIView):
         page = paginator.get_page(page)
         count = paginator.count
         serializer = ShipmentSerializer(page, many=True)
+        return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        description="Recomendation Supplier to Shipment",
+        tags=['Shipments (Отгрузок)'],
+        responses={200: PriorityShipmentsSerializer(many=True)},
+        request=ShipmentCreateSerializer,
+    )
+    def post(self, request, company_id):
+        company = get_object_or_404(Company, id=company_id)
+        data  = request.data
+        serializer = ShipmentCreateSerializer(data=data)
+        
+        if serializer.is_valid():
+            shipment = serializer.save()
+            serializer = ShipmentSerializer(shipment, many=True)
+            return Response({"results": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ShipmentHistoryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        description="Get all Shipment History",
+        tags=['Shipment History (История отгрузок)'],
+        responses={200: ShipmentHistorySerializer(many=True)},
+        parameters=COMPANY_WAREHOUSE_PARAMETRS + [OpenApiParameter('date_from', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date from"), (OpenApiParameter('date_to', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Date to"))]
+    )
+    def get(self, request: Request, company_id):
+        
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        article = request.query_params.get("article","")
+        date_from = request.query_params.get('date_from', None)
+        date_to = request.query_params.get('date_to', None)
+        sort = request.query_params.get('sort', "")
+        
+        date_from = datetime.strptime(date_from, '%Y-%m-%d').date() if date_from else datetime.now().date() - timedelta(days=6)
+        date_to = datetime.strptime(date_to, '%Y-%m-%d').date() if date_to else date_from + timedelta(days=7)
+
+        company = get_object_or_404(Company,id=company_id)
+        
+        if sort and sort in ["Z-A", "A-Z"]:
+            ordering_by_alphabit = "-" if sort =="Z-A" else ""
+            sorting_warehouse = ShipmentHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
+        elif sort and sort in ["-1", "1"]:
+            ordering_by_quantity = "-" if sort =="-1" else ""
+            sorting_warehouse = ShipmentHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).order_by(f"{ordering_by_quantity}quantity").distinct("product")
+        else:
+            sorting_warehouse = ShipmentHistory.objects.filter(company=company, product__vendor_code__contains=article,date__gte=date_from, date__lte=date_to).distinct("product")
+            print(sorting_warehouse)
+        context = {"date_from": date_from, "date_to": date_to}
+        
+        
+        paginator = Paginator(sorting_warehouse, per_page=page_size)
+        page = paginator.get_page(page)
+        count = paginator.count
+        serializer = ShipmentHistorySerializer(page, context={'dates': context}, many=True)
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)

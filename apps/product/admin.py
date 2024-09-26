@@ -132,3 +132,13 @@ class PriorityShipmentsrAdminView(admin.ModelAdmin):
     def vendor_code(self, recommandations: Shipment):
         return recommandations.product.vendor_code
 
+@admin.register(ShipmentHistory)
+class ShipmentHistoryAdminView(admin.ModelAdmin):
+    
+    list_display =["id", "vendor_code", "quantity", "date"]
+    search_fields = ["product__vendor_code"]
+    list_filter = ["company"]
+
+    def vendor_code(self, recommandations: ShipmentHistory):
+        return recommandations.product.vendor_code
+
