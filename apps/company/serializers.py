@@ -434,6 +434,7 @@ class InProductionSerializer(serializers.Serializer):
     
     def validate_recommendations_id(self, value):
         errors = []
+        print(value)
         if not Recommendations.objects.filter(id=value).exists():
             errors.append(f" Not found is Recommendations with UUID : {value}")
         if errors:
@@ -786,7 +787,7 @@ class ShipmentHistorySerializer(serializers.ModelSerializer):
         dates = self.context.get("dates")
         date_from = dates.get("date_from")
         date_to = dates.get("date_to")
-        date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)]
+        date_range = [date_from + datetime.timedelta(days=x) for x in range((date_to - date_from).days + 1)][:-1]
         dc = {date.strftime("%Y-%m-%d"): 0 for date in date_range}
 
         for date in date_range:
@@ -813,15 +814,15 @@ class CreateShipmentHistorySerializer(serializers.Serializer):
         if errors:
             raise serializers.ValidationError(errors)
         product = shipment.first().product
-        stock = WarehouseHistory.objects.filter(product__in=product).aggregate(total=Sum("stock"))['total'] or 0
+        stock = WarehouseHistory.objects.filter(product=product).aggregate(total=Sum("stock"))['total'] or 0
         
         if stock < shipment.first().shipment:
-            raise serializers.ErrorDetail("Insufficient stock available for the shipment")
+            raise serializers.ValidationError("Insufficient stock available for the shipment")
         
         shelfs = Shelf.objects.filter(id__in=attrs['shelf_ids']).order_by("stock")
         ship_t = shipment.first().shipment
         if shelfs.aggregate(total=Sum("stock"))["total"] < ship_t:
-            raise serializers.ErrorDetail("There is not enough product on the shelfs")
+            raise serializers.ValidationError("There is not enough product on the shelfs")
         
         return attrs
     
@@ -837,7 +838,7 @@ class CreateShipmentHistorySerializer(serializers.Serializer):
             if shelf_stock.stock >= ship_t:
                 shelf_stock.stock -= ship_t
                 shelf_stock.save()
-                shipment = ShipmentHistory.objects.create(company=company,product=product,quantity=ship_t)
+                shipment_history = ShipmentHistory.objects.create(company=company,product=product,quantity=ship_t)
                 shipment.delete()
                 break
             else:
@@ -846,3 +847,15 @@ class CreateShipmentHistorySerializer(serializers.Serializer):
                 shelf_stock.delete()
 
         return shipment
+
+class UpdatePrioritySerializer(serializers.Serializer):
+    travel_days = serializers.IntegerField()
+    arrive_days = serializers.IntegerField()
+
+    def update(self, instance: PriorityShipments, validated_data):
+        arrive_days = validated_data['arrive_days']
+        travel_days = validated_data['travel_days']
+        instance.travel_days = travel_days
+        instance.arrive_days = arrive_days
+        instance.save()
+        return instance

@@ -17,7 +17,7 @@ from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSe
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
     SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
     SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer, ShipmentSerializer,\
-    ShipmentCreateSerializer, ShipmentHistorySerializer, CreateShipmentHistorySerializer
+    ShipmentCreateSerializer, ShipmentHistorySerializer, CreateShipmentHistorySerializer, UpdatePrioritySerializer
 from .tasks import update_recomendations, update_recomendation_supplier, update_priority
 
 COMPANY_SALES_PARAMETRS = [
@@ -246,21 +246,26 @@ class InProductionView(APIView):
     ])
     def post(self,request: Request, company_id):
         data = request.data
-        rec = get_object_or_404(Recommendations, id=data['recommendations_id'])
-        rec.quantity -= data['application_for_production']
-        rec.save()
+        
         in_productions = InProduction.objects.filter(recommendations=data['recommendations_id'])
-
         if in_productions.exists():
-            in_productions.first().manufacture += data['application_for_production']
-            in_productions.first().save()
-            serializer = InProductionSerializer(in_productions.first())
+            
+            in_productions = in_productions.first()
+            in_productions.manufacture += data['application_for_production']
+            in_productions.save()
+            rec = get_object_or_404(Recommendations, id=data['recommendations_id'])
+            rec.quantity -= data['application_for_production']
+            rec.save()
+            serializer = InProductionSerializer(in_productions)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         serializer = InProductionSerializer(data=data)
         if serializer.is_valid():
             in_productions = serializer.save()
             serializer = InProductionSerializer(in_productions)
+            rec = get_object_or_404(Recommendations, id=data['recommendations_id'])
+            rec.quantity -= data['application_for_production']
+            rec.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -425,7 +430,12 @@ class UpdateShelfView(APIView):
         shelf = get_object_or_404(Shelf,id=shelf_id)
         serializer = ShelfUpdateSerializer(shelf,data=data)
         if serializer.is_valid():
-            serializer.save()
+            instance = serializer.save()
+            history = WarehouseHistory.objects.get(shelf=instance)
+            stock = instance.stock
+            history.stock = stock
+            history.date = datetime.now()
+            history.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -748,9 +758,35 @@ class ShipmentHistoryView(APIView):
         serializer = ShipmentHistorySerializer(page, context={'dates': context}, many=True)
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
+    @extend_schema(
+        description="Shipment to Shipment History",
+        tags=['Shipment History (История отгрузок)'],
+        responses={201: ShipmentHistorySerializer(many=True)},
+        request=CreateShipmentHistorySerializer,
+    )
     def post(self, request, company_id):
         data = request.data
         serializer = CreateShipmentHistorySerializer(data=data)
         if serializer.is_valid():
             ship_his = serializer.save()
-            serializer = ShipmentHistorySerializer(ship_his)
+            return Response({"message": "success saved"}, status.HTTP_201_CREATED)
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+
+
+class ChangeRegionTimeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    @extend_schema(
+        description="Update Priority Shipment",
+        tags=['Priority Shipments (Приоритет отгрузок)'],
+        responses={200: PriorityShipmentsSerializer()},
+        request=UpdatePrioritySerializer,
+    )
+    def patch(self, request, priority_id):
+        priority = get_object_or_404(PriorityShipments, id=priority_id)
+        data = request.data
+        serializer = UpdatePrioritySerializer(instance=priority, data=data)
+        if serializer.is_valid():
+            priority = serializer.save()
+            serializer = PriorityShipmentsSerializer(priority)
+            return Response(serializer.data,status.HTTP_200_OK)
+        return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)

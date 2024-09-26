@@ -23,14 +23,6 @@ def auto_delete_sortingwarehouse(sender, instance: Shelf, **kwargs):
     if instance.stock == 0:
         instance.delete()
 
-@receiver(post_save,sender=Shelf)
-def auto_update_warehouse(sender, instance: Shelf, created, **kwargs):
-    if not created:
-        history = WarehouseHistory.objects.get(shelf=instance)
-        stock = instance.stock
-        history.stock = stock
-        history.date = datetime.now()
-        history.save()
 
         
 
