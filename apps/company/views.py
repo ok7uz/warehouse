@@ -310,13 +310,17 @@ class UpdateInProductionView(APIView):
         ),
     ]
     )
+
     def patch(self, request, inproduction_id):
         
         in_production = get_object_or_404(InProduction,id=inproduction_id)
         produced = request.data.get("produced",0)
-        in_production.produced += produced
+        in_production.manufacture -= produced
         in_production.save()
         serializer = InProductionUpdateSerializer(in_production)
+        sorting, created_s = SortingWarehouse.objects.get_or_create(company=in_production.company,product=in_production.product)
+        sorting.unsorted += produced
+        sorting.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
              
 class SortingWarehouseView(APIView):
