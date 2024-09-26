@@ -837,10 +837,12 @@ class CreateShipmentHistorySerializer(serializers.Serializer):
             if shelf_stock.stock >= ship_t:
                 shelf_stock.stock -= ship_t
                 shelf_stock.save()
-                hipment = ShipmentHistory.objects.create(company=company,product=product,quantity=ship_t)
+                shipment = ShipmentHistory.objects.create(company=company,product=product,quantity=ship_t)
                 shipment.delete()
                 break
             else:
                 shipment.shipment -= shelf_stock.stock
                 shipment.save()
                 shelf_stock.delete()
+
+        

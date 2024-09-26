@@ -7,11 +7,8 @@ from datetime import datetime
 def auto_delete_object(sender, instance: Recommendations, created, **kwargs):
     if instance.quantity <= 0:
         instance.delete()
-    if not created:
+# Manfiy bo'lishining oldini olish
         
-        if instance.quantity < 0:
-            instance.quantity = 0  # Manfiy bo'lishining oldini olish
-        instance.save()
 
 @receiver(post_save, sender=InProduction)
 def auto_delete_object(sender, instance: InProduction, created, **kwargs):
