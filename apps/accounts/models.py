@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.conf import settings
 import uuid
 
 from apps.accounts.managers.manager import CustomUserManager, CustomUsersManager
@@ -20,6 +21,8 @@ class CustomUser(AbstractUser):
         WRONG_PASSWORD_OR_LOGIN_ENTERED = _("Incorrect login or password")
         USER_WITH_SUCH_EMAIL_ALREADY_EXISTS = _("User with this email already exists")
         USER_WITH_SUCH_EMAIL_DOES_NOT_EXIST = _("User with this email does not exist")
+
+    author_user = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='created_users', blank=True, verbose_name='Author Users')
 
     # Unique identifier for the user, used as primary key
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)

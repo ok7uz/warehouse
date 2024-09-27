@@ -509,14 +509,22 @@ class WarehouseHistorySerializer(serializers.ModelSerializer):
         results = {}
         shelfs = WarehouseHistory.objects.filter(product=obj.product)
         for shelf in shelfs:
-            results[shelf.shelf.shelf_name] = dc
+            if shelf.shelf:
+                name = shelf.shelf.shelf_name
+            else:
+                name = "-"
+            results[name] = dc
         for shelf in shelfs:
+            if shelf.shelf:
+                name = shelf.shelf.shelf_name
+            else:
+                name = "-"
             for date in date_range:
                 total = WarehouseHistory.objects.filter(product=obj.product, date=date, company=obj.company, shelf=shelf.shelf).aggregate(total=Sum("stock")).get("total",0)
                 if total:
-                    results[shelf.shelf.shelf_name][date.strftime("%Y-%m-%d")] = total
+                    results[name][date.strftime("%Y-%m-%d")] = total
                 else:
-                    results[shelf.shelf.shelf_name][date.strftime("%Y-%m-%d")] = 0
+                    results[name][date.strftime("%Y-%m-%d")] = 0
         
         return results
 
@@ -839,11 +847,13 @@ class CreateShipmentHistorySerializer(serializers.Serializer):
                 shelf_stock.stock -= ship_t
                 shelf_stock.save()
                 shipment_history = ShipmentHistory.objects.create(company=company,product=product,quantity=ship_t)
+                warehouse_history = WarehouseHistory.objects.create(product=product, company=company, date=datetime.datetime.now(),stock=-ship_t, shelf=shelf_stock)
                 shipment.delete()
                 break
             else:
                 shipment.shipment -= shelf_stock.stock
                 shipment.save()
+                warehouse_history = WarehouseHistory.objects.create(product=product, company=company, date=datetime.datetime.now(),stock=-ship_t, shelf=shelf_stock)
                 shelf_stock.delete()
 
         return shipment

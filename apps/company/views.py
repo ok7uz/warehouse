@@ -772,7 +772,6 @@ class ShipmentHistoryView(APIView):
             return Response({"message": "success saved"}, status.HTTP_201_CREATED)
         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
-
 class ChangeRegionTimeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     @extend_schema(

@@ -5,11 +5,11 @@ from rest_framework import status, permissions
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
 from apps.accounts.renderers import UserRenderers
 from apps.accounts.serializers import UserLoginSerializers, UserProfileSerializers, CustomUserSerializer, \
-    UserListSerializers, GroupSerializer
+    UserListSerializers, GroupSerializer, UUIDSerializer, UpdateProfileSerializer
 from apps.accounts.utils import get_token_for_user
 from apps.accounts.models import CustomUser
 
@@ -105,7 +105,24 @@ class UserProfilesView(APIView):
 
         serializer = UserProfileSerializers(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
+    
+    @extend_schema(
+        tags=['Account'],
+        description="update profile",
+        responses={
+            200: UserProfileSerializers,
+            400: OpenApiResponse(description='Bad request')
+        },
+        request=UpdateProfileSerializer
+    )
+    def put(self, request):
+        user=request.user
+        serializer = UpdateProfileSerializer(instance=user,data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            serializer = UserProfileSerializers(user)
+            return Response(serializer.data,status.HTTP_200_OK)
+        return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
 
 class UserDetailsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -116,17 +133,21 @@ class UserDetailsView(APIView):
         responses={200: UserListSerializers}
     )
     def get(self, request, *args, **kwargs):
-        user = get_object_or_404(CustomUser, uuid=kwargs.get('uuid'))
+        user = request.user
         serializer = UserListSerializers(user, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+class WithUUIDView(APIView):
+
+    permission_classes = [permissions.IsAuthenticated]
     @extend_schema(
         description="Update user details",
         tags=['User Detail'],
-        responses={200: CustomUserSerializer}
+        responses={200: CustomUserSerializer}, 
+        request=CustomUserSerializer
     )
     def put(self, request, *args, **kwargs):
-        user = get_object_or_404(CustomUser, uuid=kwargs.get('uuid'))
+        user = get_object_or_404(CustomUser, uuid=kwargs.get("uuid"))
         serializer = CustomUserSerializer(user, data=request.data, context={'request': request})
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -134,14 +155,15 @@ class UserDetailsView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
-        description="Delete user",
+        description="Delete a user by UUID provided in the request body",
         tags=['User Detail'],
-        responses={204: 'No content'}
+        responses={204: 'No content'},
+        request=UUIDSerializer
     )
     def delete(self, request, *args, **kwargs):
-        user = get_object_or_404(CustomUser, uuid=kwargs.get('uuid'))
+        user = get_object_or_404(CustomUser, uuid=kwargs.get("uuid"))
         user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "User deleted successfully"},status=status.HTTP_200_OK)
 
 
 class GroupsListViews(APIView):

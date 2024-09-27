@@ -20,8 +20,7 @@ class GroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Group
-        fields = '__all__'
-
+        fields = ['id','name']
 
 class UserLoginSerializers(serializers.ModelSerializer):
     """
@@ -48,7 +47,7 @@ class UserProfileSerializers(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'groups', 'first_name', 'last_name', 'avatar', 'chat_id']
+        fields = ['uuid', 'username', 'groups', 'first_name', 'last_name', 'avatar', 'chat_id']
 
 class UserListSerializers(serializers.ModelSerializer):
     """
@@ -59,7 +58,7 @@ class UserListSerializers(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'groups', 'first_name', 'last_name', 'avatar', 'chat_id', 'password']
+        fields = ['uuid', 'username', 'groups', 'first_name', 'last_name', 'avatar', 'chat_id', 'password']
         extra_kwargs = {
             'password': {'write_only': True},  # Ensure password field is write-only
         }
@@ -80,6 +79,7 @@ class UserListSerializers(serializers.ModelSerializer):
         instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.set_password(validated_data.get('password', instance.password))  # Set new password if provided
         instance.avatar = validated_data.get('avatar', instance.avatar)  # Update avatar if provided
+        instance.group = validated_data.get('group', instance.group)
         instance.save()
         return instance
 
@@ -118,9 +118,9 @@ class CustomUserSerializer(serializers.ModelSerializer):
             user.company.add(company)
 
         # Save user is parent user
-        user_parents = CustomUser.obj.get_parent_users()
-        for user_item in user_parents:
-            user.author_user.add(user_item)
+        user_parents = author.author_user.all()
+        user.author_user.set(user_parents)
+        user.author_user.set([author])
 
         return user
 
@@ -129,13 +129,45 @@ class CustomUserSerializer(serializers.ModelSerializer):
         instance.email = validated_data.get('email', instance.email)
         instance.username = validated_data.get('username', instance.username)
         instance.chat_id = validated_data.get('chat_id', instance.chat_id)
-        if validated_data.pop('avatar'):
-            instance.avatar = validated_data.pop('avatar')
-        else:
-            instance.avatar = validated_data.get('avatar', instance.avatar)
+        if validated_data.get('avatar',False):
+            instance.avatar = validated_data.pop('avatar')                
         instance.save()
+        instance.groups.set(validated_data['groups'])
         return instance
 
+class UUIDSerializer(serializers.Serializer):
+    user_uuid = serializers.UUIDField()
 
+class UpdateProfileSerializer(serializers.Serializer):
 
+    username = serializers.CharField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    chat_id = serializers.IntegerField()
+    email = serializers.EmailField()
+    avatar = serializers.ImageField(required=False)
 
+    def validate_username(self, value):
+        user = CustomUser.objects.filter(username=value)
+        if user.exists():
+            raise serializers.ValidationError("A username with the specified credentials already exists")
+        return value
+
+    def validate_email(self, value):
+        user = CustomUser.objects.filter(email=value)
+        if user.exists():
+            raise serializers.ValidationError("A email with the specified credentials already exists")
+        return value
+
+    def update(self, instance, validated_data):
+        instance.username = validated_data.get("username",instance.username)
+        instance.first_name = validated_data.get("first_name",instance.first_name)
+        instance.last_name = validated_data.get("last_name",instance.last_name)
+        instance.chat_id = validated_data.get("chat_id",instance.chat_id)
+        instance.avatar = validated_data.get("avatar",instance.avatar)
+        instance.email = validated_data.get("email",instance.email)
+        instance.save()
+
+        return instance
+        
+   
