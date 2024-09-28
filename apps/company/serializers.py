@@ -629,14 +629,8 @@ class InventorySerializer(serializers.ModelSerializer):
         return {"vendor_code":obj.product.vendor_code,"product_id": obj.product.pk}
     
     def get_shelfs(self,obj):
-        shelfs = Shelf.objects.filter(product=obj.product)
-        dc = []
-        for shelf in shelfs:
-            pk = shelf.pk
-            name = shelf.shelf_name
-            stock = shelf.stock
-            dc.append({"id": pk,"shelf_name":name,"stock": stock})
-        return dc
+        shelfs = Shelf.objects.filter(product=obj.product,company=obj.company).values("id","shelf_name","stock")
+        return shelfs
     
     def get_total(self,obj):
         total = Shelf.objects.filter(product=obj.product).aggregate(total=Sum("stock"))['total']
@@ -709,8 +703,6 @@ class CreateInventoryWithBarcodeSerializer(serializers.Serializer):
             warehouse_history.save()
 
             return warehouse_history
-
-
 
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:

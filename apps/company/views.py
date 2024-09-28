@@ -473,12 +473,12 @@ class InventoryView(APIView):
         
         if sort and sort in ["Z-A", "A-Z"]:
             ordering_by_alphabit = "-" if sort =="Z-A" else ""
-            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code")
+            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
         elif sort and sort in ["-1", "1"]:
             ordering_by_quantity = "-" if sort =="-1" else ""
-            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}stock")
+            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}stock").distinct("product")
         else:
-            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article)
+            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).distinct("product")
         paginator = Paginator(in_production, per_page=page_size)
         page = paginator.get_page(page)
         serializer = InventorySerializer(page,many=True)
