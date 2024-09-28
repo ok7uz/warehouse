@@ -12,11 +12,18 @@ from apps.accounts.serializers import UserLoginSerializers, UserProfileSerialize
     UserListSerializers, GroupSerializer, UUIDSerializer, UpdateProfileSerializer
 from apps.accounts.utils import get_token_for_user
 from apps.accounts.models import CustomUser
+from apps.company.permission_class import IsSuperUser, IsManager
 
 
 class CustomUserCreateView(APIView):
     renderer_classes = [UserRenderers]
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        
+        if self.request.method == "POST":
+            self.permission_classes = [IsSuperUser | IsManager]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in self.permission_classes]
 
     @extend_schema(
         request=CustomUserSerializer,
@@ -41,7 +48,6 @@ class CustomUserCreateView(APIView):
         users = CustomUser.obj.filter_by_auther(request.user)
         serializer = UserListSerializers(users, many=True, context={'request': request})
         return Response(serializer.data)
-
 
 class UserLoginView(APIView):
     """
@@ -80,7 +86,6 @@ class UserLoginView(APIView):
                 token = get_token_for_user(user)
                 return Response({'token': token}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class UserProfilesView(APIView):
     """
@@ -125,7 +130,13 @@ class UserProfilesView(APIView):
         return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
 
 class UserDetailsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        
+        if self.request.method == "POST":
+            self.permission_classes = [IsSuperUser | IsManager]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in self.permission_classes]
 
     @extend_schema(
         description="Get user details",
@@ -139,7 +150,14 @@ class UserDetailsView(APIView):
 
 class WithUUIDView(APIView):
 
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        
+        if self.request.method in ["POST", "PUT", "DELETE"]:
+            self.permission_classes = [IsSuperUser]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in self.permission_classes]
+    
     @extend_schema(
         description="Update user details",
         tags=['User Detail'],
@@ -164,7 +182,6 @@ class WithUUIDView(APIView):
         user = get_object_or_404(CustomUser, uuid=kwargs.get("uuid"))
         user.delete()
         return Response({"message": "User deleted successfully"},status=status.HTTP_200_OK)
-
 
 class GroupsListViews(APIView):
     renderer_classes = [UserRenderers]

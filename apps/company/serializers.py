@@ -433,6 +433,7 @@ class InProductionSerializer(serializers.Serializer):
 
     
     def validate_recommendations_id(self, value):
+        
         errors = []
         print(value)
         if not Recommendations.objects.filter(id=value).exists():
@@ -455,6 +456,7 @@ class InProductionSerializer(serializers.Serializer):
         return production
 
 class InProductionUpdateSerializer(serializers.ModelSerializer):
+    
     id = serializers.UUIDField(required=False)   
     product = serializers.SerializerMethodField(required=False)
     manufacture = serializers.IntegerField(required=False)

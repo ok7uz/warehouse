@@ -3,6 +3,7 @@ from django.core.paginator import Paginator
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter, OpenApiExample
 from apps.product.tasks import *
+from apps.company.permission_class import *
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -38,11 +39,18 @@ COMPANY_WAREHOUSE_PARAMETRS = [
 ]
 
 class CompanyListView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        
+        if self.request.method == "POST":
+            self.permission_classes = [IsSuperUser]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in self.permission_classes]
 
     @extend_schema(
         request=CompanyCreateAndUpdateSerializers,
-        description="Get all company",
+        description="Create company with marketplaces",
         tags=['Company'],
         responses={201: CompanyCreateAndUpdateSerializers()}
     )
@@ -69,12 +77,18 @@ class CompanyListView(APIView):
         responses={200: CompanySerializer(many=True)}
     )
     def get(self, request, *args, **kwargs):
-        companies = Company.objects.filter(owner=request.user)
+        companies = Company.objects.all()
         serializer = CompaniesSerializers(companies, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CompanyDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        
+        if self.request.method in ["POST", "PUT", "DELETE"]:
+            self.permission_classes = [IsSuperUser]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return [permission() for permission in self.permission_classes]
 
     @extend_schema(
         description="Get all company",
@@ -111,8 +125,8 @@ class CompanyDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class CompanySalesView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager ]
+        
     @extend_schema(
         description="Get all company",
         tags=['Company'],
@@ -128,7 +142,7 @@ class CompanySalesView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CompanyOrdersView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager ]
 
     @extend_schema(
         description='Get all company orders',
@@ -147,7 +161,7 @@ class CompanyOrdersView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CompanyStocksView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
 
     @extend_schema(
         description='Get all company stocks',
@@ -164,7 +178,7 @@ class CompanyStocksView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class RecommendationsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager ]
 
     @extend_schema(
         description='Get all company recommandations',
@@ -195,7 +209,7 @@ class RecommendationsView(APIView):
         return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
 
 class InProductionView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker | IsMachineOperator]
 
     @extend_schema(
         description='Get all company inproductions (В производстве)',
@@ -270,7 +284,7 @@ class InProductionView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UpdateInProductionView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker | IsMachineOperator]
     
     @extend_schema(
         description='Update InProduction by id',
@@ -329,7 +343,7 @@ class UpdateInProductionView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
              
 class SortingWarehouseView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker ]
 
     @extend_schema(
         description='Get all Sorting warehouse (В производстве)',
@@ -377,7 +391,7 @@ class SortingWarehouseView(APIView):
 
 class WarehouseHistoryView(APIView):
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker ]
 
     @extend_schema(
         description="Get all company",
@@ -417,7 +431,7 @@ class WarehouseHistoryView(APIView):
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
 class UpdateShelfView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker ]
     
     @extend_schema(
         description='Update shelf (Место)',
@@ -440,7 +454,7 @@ class UpdateShelfView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class InventoryView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker | IsMachineOperator]
 
     @extend_schema(
         description='Get all company inventory (В производстве)',
@@ -489,7 +503,7 @@ class InventoryView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SettingsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser ]
 
     @extend_schema(
      description='Get company settings',
@@ -520,7 +534,7 @@ class SettingsView(APIView):
         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
         
 class CalculationRecommendationView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager ]
     @extend_schema(
     description='Calculation recommendation',
     tags=["Recomamandations"],
@@ -534,7 +548,7 @@ class CalculationRecommendationView(APIView):
         return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
     
 class CheckTaskView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager ]
     
     @extend_schema(
     description='Get the status of the recommendation calculation process',
@@ -551,7 +565,7 @@ class CheckTaskView(APIView):
         return Response({"status": task_result.status, "result": task_result.result},status.HTTP_200_OK)
     
 class RecomamandationSupplierView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
 
     @extend_schema(
         description="Get all Recomendation Supplier",
@@ -595,7 +609,7 @@ COMPANY_PRIORITY_PARAMETRS = [
 ]
 
 class PriorityShipmentsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
 
     @extend_schema(
         description="Get all Priority Shipments",
@@ -668,7 +682,7 @@ class PriorityShipmentsView(APIView):
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
     
 class ShipmentView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
     
     @extend_schema(
         description="Get all Shipments",
@@ -718,7 +732,7 @@ class ShipmentView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ShipmentHistoryView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
 
     @extend_schema(
         description="Get all Shipment History",
@@ -773,7 +787,7 @@ class ShipmentHistoryView(APIView):
         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
 class ChangeRegionTimeView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsSuperUser ]
     @extend_schema(
         description="Update Priority Shipment",
         tags=['Priority Shipments (Приоритет отгрузок)'],
