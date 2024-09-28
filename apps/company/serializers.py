@@ -675,6 +675,43 @@ class CreateInventorySerializer(serializers.Serializer):
 
             return warehouse_history
 
+class CreateInventoryWithBarcodeSerializer(serializers.Serializer):
+    barcode = serializers.CharField()
+    shelf_name = serializers.CharField()
+    stock = serializers.IntegerField()
+
+    def validate_barcode(self, value):
+        product = Product.objects.filter(barcode=value)
+        if not product.exists():
+            raise serializers.ValidationError("Not product with barcode")
+        return value
+    
+    def create(self, validated_data):
+        with transaction.atomic():
+            barcode = validated_data['barcode']
+            company_id = self.context['company_id']
+            shelf_name = validated_data['shelf_name']
+            stock = validated_data['stock']
+            
+            product = Product.objects.filter(id=barcode)
+            if product.filter(marketplace_type="wildberries"):
+                product = product.filter(marketplace_type="wildberries").first()
+            else:
+                product = product.first()
+            company = Company.objects.get(id=company_id)
+
+            shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)      
+            shelf.stock += stock
+            shelf.save()
+
+            warehouse_history, created = WarehouseHistory.objects.get_or_create(company=company,product=product,shelf=shelf)
+            warehouse_history.stock += stock
+            warehouse_history.save()
+
+            return warehouse_history
+
+
+
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model=CompanySettings

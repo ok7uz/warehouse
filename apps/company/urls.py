@@ -12,6 +12,7 @@ urlpatterns = [
     path('companies/<uuid:company_id>/sorting/', SortingWarehouseView.as_view(), name='company-sorting-warehouse'), 
     path('companies/<uuid:company_id>/finished-products/', WarehouseHistoryView.as_view(), name='company-warehosue-history'), 
     path('companies/<uuid:company_id>/inventory/', InventoryView.as_view(), name='company-inventory'), 
+    path('companies/<uuid:company_id>/inventory-barcode/', AddNewProductInventory.as_view(), name='company-inventory-barcode'), 
     path('companies/<uuid:company_id>/settings/', SettingsView.as_view(), name='company-settings'), 
     path('companies/<uuid:company_id>/calculate-recomand/', CalculationRecommendationView.as_view(), name='calculate-recomand'), 
     path('companies/<uuid:company_id>/supplier/', RecomamandationSupplierView.as_view(), name='supplier'), 
