@@ -30,12 +30,13 @@ def update_recomendations(company):
             product = sale['product']
             total_sale = sale['total_sales']
             barcode = Product.objects.get(id=int(product)).barcode
-            product = Product.objects.filter(id=barcode,marketplace_type="wildberries")
+            product_w = Product.objects.filter(id=barcode,marketplace_type="wildberries")
             
-            if product.exists():
-                product = product.first()
+            if product_w.exists():
+                product = product_w.first()
             else:
                 product = Product.objects.get(id=int(product))
+                            
             warehouses = ProductStock.objects.filter(product=product).values_list("warehouse")
             
             shelf_stock = shelf_stocks.filter(product=product).order_by("product")

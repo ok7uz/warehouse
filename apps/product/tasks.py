@@ -365,6 +365,7 @@ def update_ozon_orders():
                 barcode = get_barcode(vendor_code=sku, api_key=ozon.api_token,client_id=ozon.client_id)
                 if not barcode:
                     continue
+                
                 product = Product.objects.filter(barcode=barcode)
                 warehouse, created_w = Warehouse.objects.get_or_create(
                     name = warehouse_name,
