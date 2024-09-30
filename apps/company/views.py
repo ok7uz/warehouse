@@ -592,7 +592,7 @@ class RecomamandationSupplierView(APIView):
         description="Get all Recomendation Supplier",
         tags=['Recomendation Supplier (Рекомендации отгрузок)'],
         responses={200: RecomamandationSupplierSerializer(many=True)},
-        parameters=COMPANY_WAREHOUSE_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket'])]
+        parameters=COMPANY_WAREHOUSE_PARAMETRS + [OpenApiParameter('service', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Type of marketplace",enum=['wildberries', 'ozon', 'yandexmarket']),OpenApiParameter('region_name', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Region name")]
     )
     def get(self, request: Request, company_id):
         
@@ -601,6 +601,7 @@ class RecomamandationSupplierView(APIView):
         article = request.query_params.get("article","")
         sort = request.query_params.get('sort', "")
         service = request.query_params.get('service', "")
+        region_name = request.query_params.get("region_name","")
 
         company = get_object_or_404(Company,id=company_id)
         
@@ -609,6 +610,9 @@ class RecomamandationSupplierView(APIView):
             supplier = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
         else:
             supplier = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).distinct("product")
+        supplier = supplier.filter(warehouse__region_name__contains=region_name)
+        if not supplier.exists():
+            supplier = supplier.filter(warehouse__oblast_okrug_name__contains=region_name)
         context = {"market": service}
         
         paginator = Paginator(supplier, per_page=page_size)
