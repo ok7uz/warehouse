@@ -231,7 +231,7 @@ class InProductionView(APIView):
             in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code")
         elif sort and sort in ["-1", "1"]:
             ordering_by_quantity = "-" if sort =="-1" else ""
-            in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}quantity")
+            in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}manufacture",f"{ordering_by_quantity}produced")
         else:
             in_production = InProduction.objects.filter(company=company, product__vendor_code__contains=article)
         
