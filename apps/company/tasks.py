@@ -30,22 +30,28 @@ def update_recomendations(company):
             product = sale['product']
             total_sale = sale['total_sales']
             barcode = Product.objects.get(id=int(product)).barcode
-            product_w = Product.objects.filter(id=barcode,marketplace_type="wildberries")
+            product_w = Product.objects.filter(barcode=barcode,marketplace_type="wildberries")
             
             if product_w.exists():
                 product = product_w.first()
             else:
                 product = Product.objects.get(id=int(product))
                             
-            warehouses = ProductStock.objects.filter(product=product).values_list("warehouse")
+            warehouses = ProductStock.objects.filter(product=product,company=company).values_list("warehouse")
             
-            shelf_stock = shelf_stocks.filter(product=product).order_by("product")
+            shelf_stock = shelf_stocks.filter(product=product,company=company).order_by("product")
             if shelf_stock.exists():
                 shelf_stock = shelf_stock.first()
                 shelf_stock = shelf_stock['total_stock']
             else:
                 shelf_stock = 0
             sorting = sorting_stocks.filter(product=product).aggregate(total=Sum("unsorted"))["total"]
+            in_production = InProduction.objects.filter(product=product,company=company)
+            if in_production.exists():
+                in_production = in_production.aggregate(total=Sum("manufacture"))
+            else:
+                in_production = 0
+            
             if not sorting:
                 sorting = 0
             try:
@@ -61,11 +67,11 @@ def update_recomendations(company):
             
             avg_sale = total_sale/last_sale_days
             try:
-                days_left = floor((shelf_stock + sorting + stock)/avg_sale)
+                days_left = floor((shelf_stock + sorting + stock + in_production)/avg_sale)
             except:
                 days_left = 0
             need_stock = int(round(avg_sale*next_sale_days))
-            recommend = need_stock - (shelf_stock + sorting + stock)
+            recommend = need_stock - (shelf_stock + sorting + stock + in_production)
             
             if recommend > 0:
                 
@@ -109,7 +115,7 @@ def update_recomendation_supplier(company):
             
             if stock_w.exists():
                 stock_w = stock_w.first()
-                stock = ProductStock.objects.filter(product=item,warehouse=stock_w,marketplace_type="wildberries")
+                stock = ProductStock.objects.filter(product=item,warehouse=stock_w,marketplace_type="wildberries",company=company)
                 if stock.exists():
                     stock = stock.latest("date").quantity
                 else:
@@ -122,7 +128,7 @@ def update_recomendation_supplier(company):
             else:
                 shelf = 0
             
-            sorting = SortingWarehouse.objects.filter(product=item)
+            sorting = SortingWarehouse.objects.filter(product=item,company=company)
             if sorting.exists():
                 sorting = sorting.aggregate(total=Sum("unsorted"))["total"]
             else:
@@ -156,13 +162,13 @@ def update_recomendation_supplier(company):
             
             name = Warehouse.objects.get(id=w_item).name
             w_item = Warehouse.objects.get(id=w_item)
-            sale = ProductSale.objects.filter(product=item, warehouse=w_item, date__range=(date_from,date_to),marketplace_type="ozon").count()
+            sale = ProductSale.objects.filter(product=item, warehouse=w_item, date__range=(date_from,date_to),marketplace_type="ozon",company=company).count()
             shelf = Shelf.objects.filter(product=item)
             stock_w = WarehouseForStock.objects.filter(name=name)
             
             if stock_w.exists():
                 stock_w = stock_w.first()
-                stock = ProductStock.objects.filter(product=item,warehouse=stock_w,marketplace_type="ozon")
+                stock = ProductStock.objects.filter(product=item,warehouse=stock_w,marketplace_type="ozon", company=company)
                 if stock.exists():
                     stock = stock.latest("date").quantity
                 else:
@@ -175,7 +181,7 @@ def update_recomendation_supplier(company):
             else:
                 shelf = 0
             
-            sorting = SortingWarehouse.objects.filter(product=item)
+            sorting = SortingWarehouse.objects.filter(product=item,company=company)
             if sorting.exists():
                 sorting = sorting.aggregate(total=Sum("unsorted"))["total"]
             else:
@@ -209,13 +215,13 @@ def update_recomendation_supplier(company):
             
             name = Warehouse.objects.get(id=w_item).name
             w_item = Warehouse.objects.get(id=w_item)
-            sale = ProductSale.objects.filter(product=item, warehouse=w_item, date__range=(date_from,date_to),marketplace_type="yandexmarket").count()
+            sale = ProductSale.objects.filter(product=item, warehouse=w_item, date__range=(date_from,date_to),marketplace_type="yandexmarket", company=company).count()
             shelf = Shelf.objects.filter(product=item)
             stock_w = WarehouseForStock.objects.filter(name=name)
             
             if stock_w.exists():
                 stock_w = stock_w.first()
-                stock = ProductStock.objects.filter(product=item,warehouse=stock_w,marketplace_type="yandexmarket")
+                stock = ProductStock.objects.filter(product=item,warehouse=stock_w,marketplace_type="yandexmarket",company=company)
                 if stock.exists():
                     stock = stock.latest("date").quantity
                 else:
@@ -228,7 +234,7 @@ def update_recomendation_supplier(company):
             else:
                 shelf = 0
             
-            sorting = SortingWarehouse.objects.filter(product=item)
+            sorting = SortingWarehouse.objects.filter(product=item,company=company)
             if sorting.exists():
                 sorting = sorting.aggregate(total=Sum("unsorted"))["total"]
             else:
