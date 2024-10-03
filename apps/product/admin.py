@@ -13,8 +13,8 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(ProductSale)
 class ProductSaleAdmin(admin.ModelAdmin):
-    list_display = ('vendor_code', 'marketplace_type')
-    search_fields = ['product__vendor_code',"id", "warehouse__id"]
+    list_display = ('vendor_code', 'marketplace_type','date')
+    search_fields = ['product__vendor_code',"id", "warehouse__id","date"]
     list_filter = ["marketplace_type","date"]
 
     def vendor_code(self, productsale_obj):

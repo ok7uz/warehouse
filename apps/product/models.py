@@ -131,7 +131,7 @@ class ProductStock(models.Model):
         verbose_name = "Product stock"
         verbose_name_plural = "Product stocks"
         
-        unique_together = ('product', 'company', 'date', 'warehouse', 'marketplace_type')
+        unique_together = ('product', 'company', 'date', 'warehouse', 'marketplace_type',"quantity")
 
 class Recommendations(models.Model):
     

@@ -151,14 +151,10 @@ def update_wildberries_stocks():
                 warehouse=warehouse_obj,
                 marketplace_type = "wildberries",
                 company=company,
-                date=date
+                date=date,
+                quantity=quantity
             )
-            if created_s:
-                product_stock.quantity = quantity
-                product_stock.save()
-            else:
-                product_stock.quantity = quantity
-                product_stock.save()
+            
             
     return "Succes"
             
@@ -557,14 +553,10 @@ def update_ozon_stocks():
                         warehouse=warehouse,
                         marketplace_type = "ozon",
                         company=company,
-                        date=date
+                        date=date,
+                        quantity=quantity
                     )
-                    if created_s:
-                        product_stock.quantity = quantity
-                        product_stock.save()
-                    else:
-                        product_stock.quantity = quantity
-                        product_stock.save()  
+                    
                 except:
                     pass      
     
@@ -1025,14 +1017,9 @@ def update_yandex_stocks():
                             warehouse=warehouse,
                             marketplace_type = "yandexmarket",
                             company=company,
-                            date=date
+                            date=date,
+                            quantity=quantity
                         )
-                        if created_s:
-                            product_stock.quantity = quantity
-                            product_stock.save()
-                        else:
-                            product_stock.quantity = quantity
-                            product_stock.save()
                         
                     except:
                         continue

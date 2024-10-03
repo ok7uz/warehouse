@@ -8,6 +8,7 @@ from math import ceil, floor
 
 @app.task
 def update_recomendations(company):
+    
     settings = CompanySettings.objects.get(company=company)
     last_sale_days = settings.last_sale_days
     next_sale_days = settings.next_sale_days

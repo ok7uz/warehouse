@@ -608,20 +608,27 @@ class RecomamandationSupplierView(APIView):
             supplier = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
         else:
             supplier = RecomamandationSupplier.objects.filter(company=company, product__vendor_code__contains=article,marketplace_type__icontains=service).distinct("product")
-        supplier = supplier.filter(warehouse__region_name__contains=region_name)
-        if not supplier.exists():
-            supplier = supplier.filter(warehouse__oblast_okrug_name__contains=region_name)
-        context = {"market": service}
+        
+        if region_name:
+            supplier = supplier.filter(warehouse__region_name__contains=region_name)
+            if not supplier.exists():
+                supplier = supplier.filter(warehouse__oblast_okrug_name__contains=region_name)
+            region_obj = supplier.values_list("warehouse",flat=True)
+            context = {"market": service, "region_obj": region_obj}
+        else:
+            context = {"market": service}
         
         paginator = Paginator(supplier, per_page=page_size)
         page = paginator.get_page(page)
         count = paginator.count
         serializer = RecomamandationSupplierSerializer(page, context=context, many=True)
+        
         if sort and sort in ["-1", "1"]:
             ordering_by_quantity = False if sort =="-1" else True
             data = sorted(serializer.data,key=lambda item: sum(d['quantity'] for d in item['data']), reverse=ordering_by_quantity)
         else:
             data = serializer.data
+
         return Response({"results": data, "product_count": count}, status=status.HTTP_200_OK)
     
 class CalculationRecommendationSupplierView(APIView):
