@@ -727,8 +727,7 @@ class CalculationRecommendationPriorityView(APIView):
         company = get_object_or_404(Company, id=company_id)
         task = update_priority.delay(company_id)
         return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
-
-    
+   
 class ShipmentView(APIView):
     permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
     

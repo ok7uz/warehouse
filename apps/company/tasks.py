@@ -24,70 +24,62 @@ def update_recomendations(company):
     shelf_stocks = Shelf.objects.filter(product__in=products, company=company).values('product').annotate(total_stock=Sum('stock'))
     sorting_stocks = SortingWarehouse.objects.filter(product__in=products, company=company)
     
-    with transaction.atomic():
-        for sale in sales:
+    recommendations = Recommendations.objects.filter(company=company).delete()
+    recommendations = []
+    for sale in sales:
+        
+        product = sale['product']
+        total_sale = sale['total_sales']
+        barcode = Product.objects.get(id=int(product)).barcode
+        product_w = Product.objects.filter(barcode=barcode,marketplace_type="wildberries")
+        
+        if product_w.exists():
+            product = product_w.first()
+        else:
+            product = Product.objects.get(id=int(product))
+                        
+        warehouses = ProductStock.objects.filter(product=product,company=company).values_list("warehouse")
+        
+        shelf_stock = shelf_stocks.filter(product=product,company=company).order_by("product")
+        if shelf_stock.exists():
+            shelf_stock = shelf_stock.first()
+            shelf_stock = shelf_stock['total_stock']
+        else:
+            shelf_stock = 0
+        sorting = sorting_stocks.filter(product=product).aggregate(total=Sum("unsorted"))["total"]
+        in_production = InProduction.objects.filter(product=product,company=company)
+        if in_production.exists():
+            in_production = in_production.aggregate(total=Sum("manufacture"))["total"]
+        else:
+            in_production = 0
+        
+        if not sorting:
+            sorting = 0
+        try:
+            stock = stocks.filter(product=product, warehouse__in=warehouses).values('warehouse').annotate(latest_date=Max('date'))
+            summ = 0
+            for item in stock:
+                count = stocks.filter(warehouse=item["warehouse"],date=item["latest_date"])
+                if count.exists():
+                    summ += count.first().quantity
+            stock = summ
+        except:
+            stock = 0
+        
+        avg_sale = total_sale/last_sale_days
+        try:
+            days_left = floor((shelf_stock + sorting + stock + in_production)/avg_sale)
+        except:
+            days_left = 0
+        need_stock = int(round(avg_sale*next_sale_days))
+        recommend = need_stock - (shelf_stock + sorting + stock + in_production)
+        
+        if recommend > 0:
             
-            product = sale['product']
-            total_sale = sale['total_sales']
-            barcode = Product.objects.get(id=int(product)).barcode
-            product_w = Product.objects.filter(barcode=barcode,marketplace_type="wildberries")
+            recommendations.append(Recommendations(company=company,product=product, quantity=recommend,days_left=days_left))
             
-            if product_w.exists():
-                product = product_w.first()
-            else:
-                product = Product.objects.get(id=int(product))
-                            
-            warehouses = ProductStock.objects.filter(product=product,company=company).values_list("warehouse")
-            
-            shelf_stock = shelf_stocks.filter(product=product,company=company).order_by("product")
-            if shelf_stock.exists():
-                shelf_stock = shelf_stock.first()
-                shelf_stock = shelf_stock['total_stock']
-            else:
-                shelf_stock = 0
-            sorting = sorting_stocks.filter(product=product).aggregate(total=Sum("unsorted"))["total"]
-            in_production = InProduction.objects.filter(product=product,company=company)
-            if in_production.exists():
-                in_production = in_production.aggregate(total=Sum("manufacture"))["total"]
-            else:
-                in_production = 0
-            
-            if not sorting:
-                sorting = 0
-            try:
-                stock = stocks.filter(product=product, warehouse__in=warehouses).values('warehouse').annotate(latest_date=Max('date'))
-                summ = 0
-                for item in stock:
-                    count = stocks.filter(warehouse=item["warehouse"],date=item["latest_date"])
-                    if count.exists():
-                        summ += count.first().quantity
-                stock = summ
-            except:
-                stock = 0
-            
-            avg_sale = total_sale/last_sale_days
-            try:
-                days_left = floor((shelf_stock + sorting + stock + in_production)/avg_sale)
-            except:
-                days_left = 0
-            need_stock = int(round(avg_sale*next_sale_days))
-            recommend = need_stock - (shelf_stock + sorting + stock + in_production)
-            
-            if recommend > 0:
-                
-                recommendations, created = Recommendations.objects.get_or_create(company=company,product=product)
-                if created:
-                    recommendations.quantity = recommend
-                    recommendations.days_left = days_left
-                    recommendations.save()
-                else:
-                    difference = recommend - recommendations.quantity
-                    if difference > 0 :
-                        recommendations.quantity = recommend
-                        recommendations.days_left = days_left
-                        recommendations.save()
-
-        return True
+    build = Recommendations.objects.bulk_create(recommendations,ignore_conflicts=True)
+    return True
 
 @app.task
 def update_recomendation_supplier(company):
