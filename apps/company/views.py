@@ -563,9 +563,7 @@ class CalculationRecommendationView(APIView):
         )
     def get(self, request, company_id):
         company = get_object_or_404(Company, id=company_id)
-        task = update_recomendation_supplier.delay(company_id)
-        update_recomendations.delay(company_id)
-        update_priority.delay(company_id)
+        task = update_recomendations.delay(company_id)
         return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
     
 class CheckTaskView(APIView):
@@ -625,6 +623,18 @@ class RecomamandationSupplierView(APIView):
         else:
             data = serializer.data
         return Response({"results": data, "product_count": count}, status=status.HTTP_200_OK)
+    
+class CalculationRecommendationSupplierView(APIView):
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
+    @extend_schema(
+    description='Calculation recommendation supplier',
+    tags=["Recomendation Supplier (Рекомендации отгрузок)"],
+    responses={200: {"message": "Calculation started", "task_id": 465456}}
+        )
+    def get(self, request, company_id):
+        company = get_object_or_404(Company, id=company_id)
+        task = update_recomendation_supplier.delay(company_id)
+        return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
 
 COMPANY_PRIORITY_PARAMETRS = [
     OpenApiParameter('page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Page number"),
@@ -705,6 +715,19 @@ class PriorityShipmentsView(APIView):
         serializer = PriorityShipmentsSerializer(page_obj, many=True)
         count = paginator.count
         return Response({"results": serializer.data, "product_count": count}, status=status.HTTP_200_OK)
+    
+class CalculationRecommendationPriorityView(APIView):
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
+    @extend_schema(
+    description='Calculation Priority Shipments',
+    tags=["Priority Shipments (Приоритет отгрузок)"],
+    responses={200: {"message": "Calculation started", "task_id": 465456}}
+        )
+    def get(self, request, company_id):
+        company = get_object_or_404(Company, id=company_id)
+        task = update_priority.delay(company_id)
+        return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
+
     
 class ShipmentView(APIView):
     permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
