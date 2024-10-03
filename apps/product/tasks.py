@@ -56,13 +56,16 @@ def update_wildberries_sales():
                 else:
                     product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
                 date = datetime.strptime(item['date'],"%Y-%m-%dT%H:%M:%S")
-                product_sale, created_sale= ProductSale.objects.get_or_create(
-                    product=product,
-                    company=company,
-                    date=date,
-                    marketplace_type="wildberries",
-                    warehouse=warehouse
-                )
+                try:
+                    product_sale, created_sale= ProductSale.objects.get_or_create(
+                        product=product,
+                        company=company,
+                        date=date,
+                        marketplace_type="wildberries",
+                        warehouse=warehouse
+                    )
+                except:
+                    continue
                 
                 
                 
@@ -287,7 +290,10 @@ def update_ozon_sales():
                             continue
                         
                         else:
-                            product_sale_o = ProductSale.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
+                            try:
+                                product_sale_o = ProductSale.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
+                            except:
+                                continue
                     
                     elif ozon_product and (not W_product):
                         product_sale_o = ProductSale.objects.get_or_create(product=ozon_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
@@ -305,14 +311,16 @@ def update_ozon_sales():
                         warehouse=warehouse,
                         marketplace_type = "ozon"
                     ).exists():
-                        
-                        product_sale = ProductSale.objects.create(
-                            product=product,
-                            company=company,
-                            date=date,
-                            warehouse=warehouse,
-                            marketplace_type = "ozon"
-                        )
+                        try:
+                            product_sale = ProductSale.objects.create(
+                                product=product,
+                                company=company,
+                                date=date,
+                                warehouse=warehouse,
+                                marketplace_type = "ozon"
+                            )
+                        except:
+                            continue
                 try:
                     date_from1 = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date
                 except:
@@ -390,7 +398,10 @@ def update_ozon_orders():
                     
                     if (not ozon_product) and (not W_product):
                         product = Product.objects.create(vendor_code=sku, marketplace_type="ozon", barcode=barcode)
-                        product_sale_o = ProductOrder.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
+                        try:
+                            product_sale_o = ProductOrder.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
+                        except:
+                            continue
                         continue
                     
                     elif ozon_product and W_product:
@@ -407,11 +418,17 @@ def update_ozon_orders():
                             continue
                         
                         else:
-                            product_sale_o = ProductOrder.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
+                            try:
+                                product_sale_o = ProductOrder.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
+                            except:
+                                continue
                     
                     elif ozon_product and (not W_product):
-                        product_sale_o = ProductOrder.objects.get_or_create(product=ozon_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
-                    
+                        try:
+                            product_sale_o = ProductOrder.objects.get_or_create(product=ozon_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
+                        except:
+                            continue
+
                     elif W_product and (not ozon_product):
                         product_sale_o = ProductOrder.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon")
                 else:
@@ -495,7 +512,10 @@ def update_ozon_stocks():
                     ozon_product = False
                 
                 if (not ozon_product) and (not W_product):
-                    product = Product.objects.create(vendor_code=vendor_code, marketplace_type="ozon", barcode=barcode)
+                    try:
+                        product = Product.objects.create(vendor_code=vendor_code, marketplace_type="ozon", barcode=barcode)
+                    except:
+                        continue
                     product_sale_o = ProductStock.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon", quantity=quantity)
                     continue
                 
@@ -514,13 +534,21 @@ def update_ozon_stocks():
                         continue
                     
                     else:
-                        product_sale_o = ProductStock.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon", quantity=quantity)
-                
+                        try:
+                            product_sale_o = ProductStock.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon", quantity=quantity)
+                        except:
+                            continue
                 elif ozon_product and (not W_product):
-                    product_sale_o = ProductStock.objects.get_or_create(product=ozon_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon", quantity=quantity)
-                
+                    try:
+                        product_sale_o = ProductStock.objects.get_or_create(product=ozon_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon", quantity=quantity)
+                    except:
+                        continue
+
                 elif W_product and (not ozon_product):
-                    product_sale_o = ProductStock.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon", quantity=quantity)
+                    try:
+                        product_sale_o = ProductStock.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="ozon", quantity=quantity)
+                    except:
+                        continue
             else:
                 product, created_p = Product.objects.get_or_create(vendor_code=vendor_code, marketplace_type="ozon", barcode=barcode)
                 try:
@@ -687,8 +715,14 @@ def update_yandex_market_sales():
                             yandexmarket_product = False
                         
                         if (not yandexmarket_product) and (not W_product):
-                            product = Product.objects.create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
-                            product_sale_o = ProductSale.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            try:
+                                product = Product.objects.create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
+                            except:
+                                continue
+                            try:
+                                product_sale_o = ProductSale.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            except:
+                                continue
                             continue
                         
                         elif yandexmarket_product and W_product:
@@ -705,13 +739,20 @@ def update_yandex_market_sales():
                                 continue
                             
                             else:
-                                product_sale_y = ProductSale.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
-                        
+                                try:
+                                    product_sale_y = ProductSale.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                                except:
+                                    continue
                         elif yandexmarket_product and (not W_product):
-                            product_sale_y = ProductSale.objects.get_or_create(product=yandexmarket_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
-                        
+                            try:
+                                product_sale_y = ProductSale.objects.get_or_create(product=yandexmarket_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            except:
+                                continue
                         elif W_product and (not yandexmarket_product):
-                            product_sale_y = ProductSale.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            try:
+                                product_sale_y = ProductSale.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            except:
+                                continue
                     else:
                         product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
                         if not ProductSale.objects.filter(
@@ -801,7 +842,10 @@ def update_yandex_market_orders():
                         
                         if (not yandexmarket_product) and (not W_product):
                             product = Product.objects.create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
-                            product_sale_o = ProductOrder.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            try:
+                                product_sale_o = ProductOrder.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            except:
+                                continue
                             continue
                         
                         elif yandexmarket_product and W_product:
@@ -818,13 +862,20 @@ def update_yandex_market_orders():
                                 continue
                             
                             else:
-                                product_sale_y = ProductOrder.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
-                        
+                                try:
+                                    product_sale_y = ProductOrder.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                                except:
+                                    continue
                         elif yandexmarket_product and (not W_product):
-                            product_sale_y = ProductOrder.objects.get_or_create(product=yandexmarket_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
-                        
+                            try:
+                                product_sale_y = ProductOrder.objects.get_or_create(product=yandexmarket_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            except:
+                                continue
                         elif W_product and (not yandexmarket_product):
-                            product_sale_y = ProductOrder.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            try:
+                                product_sale_y = ProductOrder.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket")
+                            except:
+                                continue
                     else:
                         product_obj, created_p = Product.objects.get_or_create(vendor_code=vendor_code, barcode=barcode, marketplace_type="yandexmarket")
                         if not ProductOrder.objects.filter(
@@ -933,7 +984,10 @@ def update_yandex_stocks():
                     
                     if (not ozon_product) and (not W_product):
                         product = Product.objects.create(vendor_code=vendor_code, marketplace_type="yandexmarket", barcode=barcode)
-                        product_sale_o = ProductStock.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket", quantity=quantity)
+                        try:
+                            product_sale_o = ProductStock.objects.create(product=product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket", quantity=quantity)
+                        except:
+                            continue
                         continue
                     
                     elif ozon_product and W_product:
@@ -951,11 +1005,15 @@ def update_yandex_stocks():
                             continue
                         
                         else:
-                            product_sale_o = ProductStock.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket", quantity=quantity)
-                    
+                            try:
+                                product_sale_o = ProductStock.objects.create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket", quantity=quantity)
+                            except:
+                                continue
                     elif ozon_product and (not W_product):
-                        product_sale_o = ProductStock.objects.get_or_create(product=ozon_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket", quantity=quantity)
-                    
+                        try:
+                            product_sale_o = ProductStock.objects.get_or_create(product=ozon_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket", quantity=quantity)
+                        except:
+                            continue
                     elif W_product and (not ozon_product):
                         product_sale_o = ProductStock.objects.get_or_create(product=W_product,company=company,date=date,warehouse=warehouse,marketplace_type="yandexmarket", quantity=quantity)
                 else:
@@ -977,7 +1035,7 @@ def update_yandex_stocks():
                             product_stock.save()
                         
                     except:
-                        pass
+                        continue
                 
                 
     return "Succes"

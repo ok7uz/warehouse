@@ -48,7 +48,7 @@ def update_recomendations(company):
             sorting = sorting_stocks.filter(product=product).aggregate(total=Sum("unsorted"))["total"]
             in_production = InProduction.objects.filter(product=product,company=company)
             if in_production.exists():
-                in_production = in_production.aggregate(total=Sum("manufacture"))
+                in_production = in_production.aggregate(total=Sum("manufacture"))["total"]
             else:
                 in_production = 0
             
@@ -197,8 +197,10 @@ def update_recomendation_supplier(company):
             difference = need_product - all_quantity
 
             if difference > 0:
-                recomamand_supplier, created = RecomamandationSupplier.objects.get_or_create(company=company,warehouse=w_item,product=item, marketplace_type="ozon")
-                
+                try:
+                    recomamand_supplier, created = RecomamandationSupplier.objects.get_or_create(company=company,warehouse=w_item,product=item, marketplace_type="ozon")
+                except:
+                    continue
                 if created:
                     recomamand_supplier.quantity = difference
                     recomamand_supplier.days_left = days_left
