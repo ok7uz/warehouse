@@ -26,10 +26,10 @@ def update_recomendations(company):
     
     recommendations = Recommendations.objects.filter(company=company).delete()
     recommendations = []
-    for sale in sales:
+    for sale in products:
+
+        product = sale['product_id']
         
-        product = sale['product']
-        total_sale = sale['total_sales']
         barcode = Product.objects.get(id=int(product)).barcode
         product_w = Product.objects.filter(barcode=barcode,marketplace_type="wildberries")
         
@@ -37,6 +37,11 @@ def update_recomendations(company):
             product = product_w.first()
         else:
             product = Product.objects.get(id=int(product))
+        total_sale = sales.filter(product=product)
+        if total_sale:
+            total_sale = total_sale[0]['total_sales']
+        else:
+            total_sale = 0
                         
         warehouses = ProductStock.objects.filter(product=product,company=company).values_list("warehouse")
         
