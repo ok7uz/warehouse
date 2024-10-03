@@ -1036,6 +1036,4 @@ def update_yandex_stocks():
                         
                     except:
                         continue
-                
-                
     return "Succes"
