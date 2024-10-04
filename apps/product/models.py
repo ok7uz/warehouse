@@ -257,3 +257,11 @@ class ShipmentHistory(models.Model):
     def __str__(self) -> str:
         return self.product.vendor_code
     
+class Inventory(models.Model):
+    
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    shelfs = models.ManyToManyField(Shelf)
+    total = models.IntegerField(default=0)
+    total_fact = models.IntegerField(default=0)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    

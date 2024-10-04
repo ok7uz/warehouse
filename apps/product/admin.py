@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock, \
       Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory, RecomamandationSupplier, PriorityShipments, \
-      ShipmentHistory, Shipment
+      ShipmentHistory, Shipment, Inventory
 from django.db.models import Count
 from django_celery_results.models import TaskResult
 
@@ -140,5 +140,15 @@ class ShipmentHistoryAdminView(admin.ModelAdmin):
     list_filter = ["company"]
 
     def vendor_code(self, recommandations: ShipmentHistory):
+        return recommandations.product.vendor_code
+
+@admin.register(Inventory)
+class InventoryAdminView(admin.ModelAdmin):
+    
+    list_display =["id", "vendor_code", "total", "total_fact"]
+    search_fields = ["product__vendor_code"]
+    list_filter = ["company"]
+
+    def vendor_code(self, recommandations: Inventory):
         return recommandations.product.vendor_code
 

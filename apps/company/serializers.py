@@ -11,7 +11,7 @@ from apps.company.models import Company, CompanySettings
 from apps.marketplaceservice.models import Wildberries, Ozon, YandexMarket
 from apps.product.models import ProductStock, ProductSale, ProductOrder, WarehouseForStock, Recommendations, \
         InProduction, SortingWarehouse, Shelf, WarehouseHistory, Product, RecomamandationSupplier, PriorityShipments, \
-        Shipment, ShipmentHistory
+        Shipment, ShipmentHistory, Inventory
 from django.core.paginator import Paginator
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -572,6 +572,10 @@ class SortingToWarehouseSeriallizer(serializers.ModelSerializer):
         sorting_warehouse.save()
 
         shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)
+        invontory, created = Inventory.objects.get_or_create(company=company,product=product)
+        invontory.total += stock
+        invontory.total_fact += stock
+        invontory.shelfs.add(shelf)
         
         shelf.stock += stock
         shelf.save()
@@ -599,45 +603,50 @@ class ShelfUpdateSerializer(serializers.ModelSerializer):
             product = instance.product
         shelf_name = validated_data.get("shelf_name",instance.shelf_name)
         stock = validated_data.get("stock", instance.stock)
-        
+        company = instance.company
+        difrence = instance.stock - stock
         instance.shelf_name = shelf_name
         instance.stock = stock
         instance.product = product
         instance.save()
-        
+
+        inventory = Inventory.objects.get(product=product, company=company)
+        inventory.total += difrence
+        inventory.total_fact += difrence
+        inventory.save()
+
         return instance
     
     def get_product(self,obj):
         return obj.product.vendor_code
-    
+
+class ShelfSerializer(serializers.Serializer):
+    class Meta:
+        model = Shelf
+        fields = "__all__"
+
 class InventorySerializer(serializers.ModelSerializer):
+    
     product = serializers.SerializerMethodField()
     shelfs = serializers.SerializerMethodField()
-    total = serializers.SerializerMethodField()
-    total_fact = serializers.SerializerMethodField()
+    total = serializers.IntegerField()
+    total_fact = serializers.IntegerField()
 
     class Meta:
-        model = WarehouseHistory
-        fields = ['product','shelfs','total','total_fact']
+        model = Inventory
+        fields = "__all__"
+
+    def get_shelfs(self, obj: Inventory):
+        shelfs = obj.shelfs.all().values("id","shelf_name", "stock")
+        return shelfs
 
     def get_product(self,obj):
         return {"vendor_code":obj.product.vendor_code,"product_id": obj.product.pk}
     
-    def get_shelfs(self,obj):
-        shelfs = Shelf.objects.filter(product=obj.product,company=obj.company).values("id","shelf_name","stock")
-        return shelfs
-    
-    def get_total(self,obj):
-        total = Shelf.objects.filter(product=obj.product,company=obj.company).aggregate(total=Sum("stock"))['total']
-        if not total:
-            total = 0
-        return total
-    
-    def get_total_fact(self,obj):
-        total = WarehouseHistory.objects.filter(product=obj.product, company=obj.company).aggregate(total=Sum("stock"))['total']
-        if not total:
-            total = 0
-        return total
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep.pop("company")
+        return rep
 
 class CreateInventorySerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
@@ -693,8 +702,9 @@ class CreateInventoryWithBarcodeSerializer(serializers.Serializer):
             shelf.stock += stock
             shelf.save()
 
-            warehouse_history, created = WarehouseHistory.objects.get_or_create(company=company,product=product,shelf=shelf)
-            warehouse_history.stock += stock
+            warehouse_history, created = Inventory.objects.get_or_create(company=company,product=product)
+            warehouse_history.shelfs.add(shelf)
+            warehouse_history.total += stock
             warehouse_history.save()
 
             return warehouse_history
@@ -900,5 +910,19 @@ class UpdatePrioritySerializer(serializers.Serializer):
         travel_days = validated_data['travel_days']
         instance.travel_days = travel_days
         instance.arrive_days = arrive_days
+        instance.save()
+        return instance
+    
+class UpdateInventorySerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    total_fact = serializers.IntegerField()
+
+    def update(self, instance: Inventory, validated_data):
+        total = validated_data.get("total", instance.total)
+        total_fact = validated_data.get("total_fact", instance.total_fact)
+
+        instance.total = total
+        instance.total_fact = total_fact
+
         instance.save()
         return instance

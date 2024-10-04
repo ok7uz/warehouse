@@ -12,14 +12,14 @@ from django_celery_results.models import TaskResult
 
 from apps.company.models import Company, CompanySettings
 from apps.product.models import Recommendations, InProduction, SortingWarehouse, Shelf, WarehouseHistory, RecomamandationSupplier, PriorityShipments, \
-Shipment, ShipmentHistory
+Shipment, ShipmentHistory, Inventory
 from apps.company.serializers import CompanySerializer, CompanyCreateAndUpdateSerializers, CompaniesSerializers, \
     CompanySalesSerializer, CompanyOrdersSerializer, CompanyStocksSerializer, RecommendationsSerializer, \
     InProductionSerializer, InProductionUpdateSerializer, SortingWarehouseSerializer, WarehouseHistorySerializer, \
     SortingToWarehouseSeriallizer, ShelfUpdateSerializer, InventorySerializer, CreateInventorySerializer, \
     SettingsSerializer, RecomamandationSupplierSerializer, PriorityShipmentsSerializer, ShipmentSerializer,\
     ShipmentCreateSerializer, ShipmentHistorySerializer, CreateShipmentHistorySerializer, UpdatePrioritySerializer, \
-    CreateInventoryWithBarcodeSerializer
+    CreateInventoryWithBarcodeSerializer, UpdateInventorySerializer
 from .tasks import update_recomendations, update_recomendation_supplier, update_priority
 
 COMPANY_SALES_PARAMETRS = [
@@ -460,7 +460,7 @@ class InventoryView(APIView):
     @extend_schema(
         description='Get all company inventory (В производстве)',
         tags=["Inventory (Инвентаризация)"],
-        responses={200: InProductionSerializer(many=True)},
+        responses={200: InventorySerializer(many=True)},
         parameters=COMPANY_WAREHOUSE_PARAMETRS
     )
     def get(self, request, company_id):
@@ -473,12 +473,12 @@ class InventoryView(APIView):
         
         if sort and sort in ["Z-A", "A-Z"]:
             ordering_by_alphabit = "-" if sort =="Z-A" else ""
-            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code").distinct("product")
+            in_production = Inventory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_alphabit}product__vendor_code")
         elif sort and sort in ["-1", "1"]:
             ordering_by_quantity = "-" if sort =="-1" else ""
-            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}stock").distinct("product")
+            in_production = Inventory.objects.filter(company=company, product__vendor_code__contains=article).order_by(f"{ordering_by_quantity}total")
         else:
-            in_production = WarehouseHistory.objects.filter(company=company, product__vendor_code__contains=article).distinct("product")
+            in_production = Inventory.objects.filter(company=company, product__vendor_code__contains=article)
         paginator = Paginator(in_production, per_page=page_size)
         page = paginator.get_page(page)
         serializer = InventorySerializer(page,many=True)
@@ -503,6 +503,25 @@ class InventoryView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+class UpdateInventoryView(APIView):
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker | IsMachineOperator]
+    
+    @extend_schema(
+        description='Get all company inventory (В производстве)',
+        tags=["Inventory (Инвентаризация)"],
+        responses={200: InventorySerializer()},
+        request=UpdateInventorySerializer
+    )
+    def put(self,request , inventory_id):
+        inventory = get_object_or_404(Inventory,id=inventory_id)
+        serializer = UpdateInventorySerializer(instance=inventory,data=request.data)
+        if serializer.is_valid():
+            inventory = serializer.save()
+            serializer = InventorySerializer(inventory)
+            return Response(serializer.data,status.HTTP_200_OK)
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+
+
 class AddNewProductInventory(APIView):
     permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker | IsMachineOperator]
 
