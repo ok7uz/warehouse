@@ -16,8 +16,15 @@ def update_recomendations(company):
     date_from = date_to - timedelta(days=last_sale_days)
     company = Company.objects.get(id=company)
 
-    products = ProductSale.objects.filter(company=company).order_by("product_id").distinct("product_id").values("product_id")
-    sales = ProductSale.objects.filter(company=company, product__in=products,date__range=(date_from,date_to)).values("product").annotate(total_sales=Count("id"))
+    products_s = ProductSale.objects.filter(company=company).order_by("product_id").distinct("product_id").values_list('product', flat=True).distinct()
+    products_o = ProductOrder.objects.filter(company=company).order_by("product_id").distinct("product_id").values_list('product', flat=True).distinct()
+    products_st = ProductStock.objects.filter(company=company).order_by("product_id").distinct("product_id").values_list('product', flat=True).distinct()
+    combined_product_ids = set(products_s) | set(products_o) | set(products_st)
+
+# Takrorlanmagan umumiy mahsulotlar ro'yxatini olish
+    products = Product.objects.filter(id__in=combined_product_ids).order_by("id").distinct("id").values("id")
+    print(products.count())
+    
 
     shelf_stocks = Shelf.objects.filter(product__in=products, company=company).values('product').annotate(total_stock=Sum('stock'))
     sorting_stocks = SortingWarehouse.objects.filter(product__in=products, company=company)
@@ -27,7 +34,7 @@ def update_recomendations(company):
     total = 0
     for sale in products:
 
-        product = sale['product_id']
+        product = sale['id']
         
         barcode = Product.objects.get(id=int(product)).barcode
         product_w = Product.objects.filter(barcode=barcode,marketplace_type="wildberries")
@@ -36,11 +43,7 @@ def update_recomendations(company):
             product = product_w.first()
         else:
             product = Product.objects.get(id=int(product))
-        total_sale = sales.filter(product=product)
-        if total_sale:
-            total_sale = total_sale.aggregate(total_sale=Sum('total_sales'))["total_sale"]
-        else:
-            total_sale = 0
+        total_sale = ProductSale.objects.filter(product=product,company=company, date__date__gte=date_from, date__date__lte=date_to).count()
                         
         warehouses = ProductStock.objects.filter(product=product,company=company).values_list("warehouse")
         

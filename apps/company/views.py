@@ -207,7 +207,7 @@ class RecommendationsView(APIView):
         paginator = Paginator(recommendations, per_page=page_size)
         page = paginator.get_page(page)
         serializer = RecommendationsSerializer(page,many=True)
-        return Response({"results": serializer.data, "product_count": len(serializer.data)}, status=status.HTTP_200_OK)
+        return Response({"results": serializer.data, "product_count": paginator.count}, status=status.HTTP_200_OK)
 
 class InProductionView(APIView):
     permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker | IsMachineOperator]
