@@ -801,13 +801,15 @@ class ShipmentCreateSerializer(serializers.Serializer):
         shipment = []
         
         for item in recomamandation_supplier:
+            
             product = item['product']
             rec_sup = item['id']
             company = item['company']
             total = RecomamandationSupplier.objects.filter(product=product,company=company).aggregate(total=Sum("quantity"))['total']
             
             shipment.append(Shipment(recomamand_supplier_id=rec_sup,product_id=product,shipment=total,company_id=company))
-
+        
+        RecomamandationSupplier.objects.filter(id__in=recomamandation_supplier_ids).delete()
         return Shipment.objects.bulk_create(shipment,ignore_conflicts=True)
 
 class ShipmentHistorySerializer(serializers.ModelSerializer):
