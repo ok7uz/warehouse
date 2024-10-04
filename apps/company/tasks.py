@@ -19,14 +19,12 @@ def update_recomendations(company):
     products = ProductSale.objects.filter(company=company).order_by("product_id").distinct("product_id").values("product_id")
     sales = ProductSale.objects.filter(company=company, product__in=products,date__range=(date_from,date_to)).values("product").annotate(total_sales=Count("id"))
 
-    stocks = ProductStock.objects.filter(
-        product_id__in=products, company=company)
-
     shelf_stocks = Shelf.objects.filter(product__in=products, company=company).values('product').annotate(total_stock=Sum('stock'))
     sorting_stocks = SortingWarehouse.objects.filter(product__in=products, company=company)
     
     recommendations = Recommendations.objects.filter(company=company).delete()
     recommendations = []
+    total = 0
     for sale in products:
 
         product = sale['product_id']
@@ -40,7 +38,7 @@ def update_recomendations(company):
             product = Product.objects.get(id=int(product))
         total_sale = sales.filter(product=product)
         if total_sale:
-            total_sale = total_sale[0]['total_sales']
+            total_sale = total_sale.aggregate(total_sale=Sum('total_sales'))["total_sale"]
         else:
             total_sale = 0
                         
@@ -61,30 +59,26 @@ def update_recomendations(company):
         
         if not sorting:
             sorting = 0
-        try:
-            stock = stocks.filter(product=product, warehouse__in=warehouses).values('warehouse').annotate(latest_date=Max('date'))
-            summ = 0
-            for item in stock:
-                count = stocks.filter(warehouse=item["warehouse"],date=item["latest_date"])
-                if count.exists():
-                    summ += count.first().quantity
-            stock = summ
-        except:
+        stock = ProductStock.objects.filter(company=company,product=product)
+        if stock.exists():
+            stock = stock.latest("date").quantity
+        else:
             stock = 0
-        
         avg_sale = total_sale/last_sale_days
+        
         try:
             days_left = floor((shelf_stock + sorting + stock + in_production)/avg_sale)
         except:
             days_left = 0
         need_stock = int(round(avg_sale*next_sale_days))
         recommend = need_stock - (shelf_stock + sorting + stock + in_production)
-        
-        if recommend > 0:
-            
+
+        if recommend > 0 or stock + in_production + shelf_stock + sorting == 0:
+            if stock + in_production + shelf_stock + sorting == 0:
+                recommend = 30
             recommendations.append(Recommendations(company=company,product=product, quantity=recommend,days_left=days_left))
-            
-    build = Recommendations.objects.bulk_create(recommendations,ignore_conflicts=True)
+
+    build = Recommendations.objects.bulk_create(recommendations)
     return True
 
 @app.task
