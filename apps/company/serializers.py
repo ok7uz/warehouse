@@ -582,7 +582,7 @@ class SortingToWarehouseSeriallizer(serializers.ModelSerializer):
         
         shelf.stock += stock
         shelf.save()
-        history, created = WarehouseHistory.objects.get_or_create(product=product,company=company)
+        history, created = WarehouseHistory.objects.get_or_create(product=product,company=company,shelf=shelf)
         history.stock += stock
         history.save()
 
@@ -904,6 +904,11 @@ class CreateShipmentHistorySerializer(serializers.Serializer):
                 shipment.save()
                 warehouse_history = WarehouseHistory.objects.create(product=product, company=company, date=datetime.datetime.now(),stock=-ship_t, shelf=shelf_stock)
                 shelf_stock.delete()
+
+        inventory = Inventory.objects.get(company=company, product=product)
+        inventory.total -= ship_t
+        inventory.total_fact -= ship_t
+        inventory.save()
 
         return shipment
 
