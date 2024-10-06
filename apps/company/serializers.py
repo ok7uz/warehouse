@@ -739,13 +739,14 @@ class RecomamandationSupplierSerializer(serializers.ModelSerializer):
         result = RecomamandationSupplier.objects.filter(product=product, marketplace_type__icontains=market, company=obj.company).select_related('warehouse').distinct("warehouse").values('warehouse__region_name','warehouse__id','days_left','quantity','warehouse__oblast_okrug_name')
         if warehouse:
             result = result.filter(warehouse_id__in=warehouse)
-        return [{
-            "region_name": item["warehouse__region_name"] ,
-            "oblast_okrug_name": item["warehouse__oblast_okrug_name"],
-            "warehouse_id": item["warehouse__id"],
-            "quantity": item["quantity"],
-            "days_left": item["quantity"]
-        } for item in result]
+        # dc = [{
+        #     "region_name": item["warehouse__region_name"] ,
+        #     "oblast_okrug_name": item["warehouse__oblast_okrug_name"],
+        #     "warehouse_id": item["warehouse__id"],
+        #     "quantity": item["quantity"],
+        #     "days_left": item["quantity"]
+        # } for item in result]
+        return result
 
     def get_is_red(self, obj):
         
