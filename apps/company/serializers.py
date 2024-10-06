@@ -483,7 +483,7 @@ class SortingWarehouseSerializer(serializers.ModelSerializer):
     
     def get_shelf(self, obj):
         shelfs = Shelf.objects.filter(product=obj.product, company=obj.company).values("id","shelf_name","stock")
-        dc = []
+ 
         return shelfs
     
 class WarehouseHistorySerializer(serializers.ModelSerializer):
@@ -572,14 +572,17 @@ class SortingToWarehouseSeriallizer(serializers.ModelSerializer):
         sorting_warehouse.save()
 
         shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)
+        shelf.stock += stock
+        shelf.save()
         invontory, created = Inventory.objects.get_or_create(company=company,product=product)
         invontory.total += stock
         invontory.total_fact += stock
+        invontory.save()
         invontory.shelfs.add(shelf)
         
         shelf.stock += stock
         shelf.save()
-        history, created = WarehouseHistory.objects.get_or_create(shelf=shelf,product=product,company=company)
+        history, created = WarehouseHistory.objects.get_or_create(product=product,company=company)
         history.stock += stock
         history.save()
 
