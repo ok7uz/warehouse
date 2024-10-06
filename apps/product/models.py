@@ -236,7 +236,7 @@ class PriorityShipments(models.Model):
 
 class Shipment(models.Model):
     
-    recomamand_supplier = models.ForeignKey(RecomamandationSupplier,on_delete=models.CASCADE)
+    recomamand_supplier = models.ForeignKey(RecomamandationSupplier,on_delete=models.SET_NULL,null=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     shipment = models.IntegerField(default=0)
     company = models.ForeignKey(Company,on_delete=models.CASCADE)

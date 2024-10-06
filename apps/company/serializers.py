@@ -667,11 +667,14 @@ class CreateInventorySerializer(serializers.Serializer):
             shelf.stock += stock
             shelf.save()
 
-            warehouse_history, created = WarehouseHistory.objects.get_or_create(company=company,product=product,shelf=shelf)
-            warehouse_history.stock += stock
-            warehouse_history.save()
+            inventory, created = Inventory.objects.get_or_create(company=company,product=product)
+            inventory.total += stock
+            inventory.total_fact += stock
+            
+            inventory.save()
+            inventory.shelfs.add(shelf)
 
-            return warehouse_history
+            return inventory
 
 class CreateInventoryWithBarcodeSerializer(serializers.Serializer):
     barcode = serializers.CharField()
@@ -809,18 +812,18 @@ class ShipmentCreateSerializer(serializers.Serializer):
         recomamandation_supplier_ids = validated_data['recomamandation_supplier_ids']
         recomamandation_supplier = RecomamandationSupplier.objects.filter(id__in=recomamandation_supplier_ids).values("id","product","company")
         shipment = []
-        
+        print(recomamandation_supplier)
         for item in recomamandation_supplier:
             
-            product = item['product']
-            rec_sup = item['id']
-            company = item['company']
+            product = Product.objects.get(id = item['product'])
+            rec_sup = RecomamandationSupplier.objects.get(id=item['id'])
+            company = Company.objects.get(id=item['company'])
             total = RecomamandationSupplier.objects.filter(product=product,company=company).aggregate(total=Sum("quantity"))['total']
             
-            shipment.append(Shipment(recomamand_supplier_id=rec_sup,product_id=product,shipment=total,company_id=company))
-        
+            shipment.append(Shipment(recomamand_supplier=rec_sup,product=product,shipment=total,company=company))
+        shipment = Shipment.objects.bulk_create(shipment,ignore_conflicts=True)
         RecomamandationSupplier.objects.filter(id__in=recomamandation_supplier_ids).delete()
-        return Shipment.objects.bulk_create(shipment,ignore_conflicts=True)
+        return shipment
 
 class ShipmentHistorySerializer(serializers.ModelSerializer):
     product = serializers.SerializerMethodField()
@@ -914,14 +917,14 @@ class UpdatePrioritySerializer(serializers.Serializer):
         return instance
     
 class UpdateInventorySerializer(serializers.Serializer):
-    total = serializers.IntegerField()
+    
     total_fact = serializers.IntegerField()
 
     def update(self, instance: Inventory, validated_data):
-        total = validated_data.get("total", instance.total)
+        
         total_fact = validated_data.get("total_fact", instance.total_fact)
 
-        instance.total = total
+        
         instance.total_fact = total_fact
 
         instance.save()
