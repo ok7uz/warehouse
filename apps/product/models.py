@@ -236,7 +236,6 @@ class PriorityShipments(models.Model):
 
 class Shipment(models.Model):
     
-    recomamand_supplier = models.ForeignKey(RecomamandationSupplier,on_delete=models.SET_NULL,null=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     shipment = models.IntegerField(default=0)
     company = models.ForeignKey(Company,on_delete=models.CASCADE)
@@ -244,8 +243,7 @@ class Shipment(models.Model):
     def __str__(self) -> str:
         return self.product.vendor_code
     
-    class Meta:
-        unique_together = ["recomamand_supplier","product","company"]
+
     
 class ShipmentHistory(models.Model):
     

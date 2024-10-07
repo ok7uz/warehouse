@@ -21,9 +21,8 @@ def update_recomendations(company):
     products_st = ProductStock.objects.filter(company=company).order_by("product_id").distinct("product_id").values_list('product', flat=True).distinct()
     combined_product_ids = set(products_s) | set(products_o) | set(products_st)
 
-# Takrorlanmagan umumiy mahsulotlar ro'yxatini olish
     products = Product.objects.filter(id__in=combined_product_ids).order_by("id").distinct("id").values("id")
-    print(products.count())
+
     
 
     shelf_stocks = Shelf.objects.filter(product__in=products, company=company).values('product').annotate(total_stock=Sum('stock'))
@@ -100,6 +99,7 @@ def update_recomendation_supplier(company):
         warehouses_o = ProductSale.objects.filter(product=item, marketplace_type="ozon").values_list("warehouse", flat=True)
         warehouses_y = ProductSale.objects.filter(product=item, marketplace_type="yandexmarket").values_list("warehouse", flat=True)
         item = Product.objects.get(id=item)
+        
         for w_item in warehouses_w:
             
             name = Warehouse.objects.get(id=w_item).name
@@ -139,6 +139,8 @@ def update_recomendation_supplier(company):
             difference = need_product - all_quantity
 
             if difference > 0:
+                if Shipment.objects.filter(product__vendor_code=item.vendor_code) or RecomamandationSupplier.objects.filter(company=company,warehouse=w_item,product=item, marketplace_type="wildberries").exists():
+                    continue
                 recomamand_supplier, created = RecomamandationSupplier.objects.get_or_create(company=company,warehouse=w_item,product=item, marketplace_type="wildberries")
                 
                 if created:
@@ -192,6 +194,8 @@ def update_recomendation_supplier(company):
             difference = need_product - all_quantity
 
             if difference > 0:
+                if Shipment.objects.filter(product__vendor_code=item.vendor_code) or RecomamandationSupplier.objects.filter(company=company,warehouse=w_item,product=item, marketplace_type="ozon").exists():
+                    continue
                 try:
                     recomamand_supplier, created = RecomamandationSupplier.objects.get_or_create(company=company,warehouse=w_item,product=item, marketplace_type="ozon")
                 except:
@@ -250,6 +254,8 @@ def update_recomendation_supplier(company):
             difference = need_product - all_quantity
 
             if difference > 0:
+                if Shipment.objects.filter(product__vendor_code=item.vendor_code) or RecomamandationSupplier.objects.filter(company=company,warehouse=w_item,product=item, marketplace_type="yandexmarket").exists():
+                    continue
                 recomamand_supplier, created = RecomamandationSupplier.objects.get_or_create(company=company,warehouse=w_item,product=item, marketplace_type="yandexmarket")
                 
                 if created:

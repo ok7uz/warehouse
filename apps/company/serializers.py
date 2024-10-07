@@ -697,23 +697,27 @@ class CreateInventoryWithBarcodeSerializer(serializers.Serializer):
             shelf_name = validated_data['shelf_name']
             stock = validated_data['stock']
             
-            product = Product.objects.filter(id=barcode)
+            product = Product.objects.filter(barcode=barcode)
             if product.filter(marketplace_type="wildberries"):
                 product = product.filter(marketplace_type="wildberries").first()
             else:
                 product = product.first()
             company = Company.objects.get(id=company_id)
-
+            print(product)
             shelf, created = Shelf.objects.get_or_create(shelf_name=shelf_name,product=product,company=company)      
             shelf.stock += stock
             shelf.save()
 
-            warehouse_history, created = Inventory.objects.get_or_create(company=company,product=product)
-            warehouse_history.shelfs.add(shelf)
-            warehouse_history.total += stock
+            inventory, created = Inventory.objects.get_or_create(company=company,product=product)
+            inventory.shelfs.add(shelf)
+            inventory.total += stock
+            inventory.save()
+
+            warehouse_history, created = WarehouseHistory.objects.get_or_create(product=product,company=company,date=datetime.datetime.now(), shelf=shelf)
+            warehouse_history.stock += stock
             warehouse_history.save()
 
-            return warehouse_history
+            return inventory
 
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -814,19 +818,38 @@ class ShipmentCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         
         recomamandation_supplier_ids = validated_data['recomamandation_supplier_ids']
-        recomamandation_supplier = RecomamandationSupplier.objects.filter(id__in=recomamandation_supplier_ids).values("id","product","company")
+        recomamandation_supplier_q = RecomamandationSupplier.objects.filter(id__in=recomamandation_supplier_ids)
+        recomamandation_supplier = recomamandation_supplier_q.values("id","product","company")
         shipment = []
-        print(recomamandation_supplier)
+        
         for item in recomamandation_supplier:
             
             product = Product.objects.get(id = item['product'])
+            vendor_code = Product.objects.get(id = item['product']).vendor_code
             rec_sup = RecomamandationSupplier.objects.get(id=item['id'])
+            marketplace_type = RecomamandationSupplier.objects.get(id=item['id']).marketplace_type
             company = Company.objects.get(id=item['company'])
-            total = RecomamandationSupplier.objects.filter(product=product,company=company).aggregate(total=Sum("quantity"))['total']
+            total = RecomamandationSupplier.objects.filter(product__vendor_code=vendor_code,company=company, marketplace_type=marketplace_type)
+            total_sum = total.aggregate(total=Sum("quantity"))['total']
+
+            product_shipment = Shipment.objects.filter(product__vendor_code=vendor_code, company=company)
             
-            shipment.append(Shipment(recomamand_supplier=rec_sup,product=product,shipment=total,company=company))
-        shipment = Shipment.objects.bulk_create(shipment,ignore_conflicts=True)
-        RecomamandationSupplier.objects.filter(id__in=recomamandation_supplier_ids).delete()
+            if product_shipment.exists():
+                
+                product = product_shipment.first().pk
+                product_shipment = Shipment.objects.get(id=product)
+                product_shipment.shipment += total_sum
+                product_shipment.save()
+                total.delete()
+                continue
+            
+            shipment.append(Shipment(product=product,shipment=total_sum,company=company))
+            total.delete()
+        if shipment:
+            shipment = Shipment.objects.bulk_create(shipment,ignore_conflicts=True)
+        else:
+            shipment = Shipment.objects.last()
+        recomamandation_supplier_q.delete()
         return shipment
 
 class ShipmentHistorySerializer(serializers.ModelSerializer):
