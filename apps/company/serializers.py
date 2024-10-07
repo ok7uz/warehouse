@@ -848,7 +848,7 @@ class ShipmentCreateSerializer(serializers.Serializer):
         if shipment:
             shipment = Shipment.objects.bulk_create(shipment,ignore_conflicts=True)
         else:
-            shipment = Shipment.objects.last()
+            shipment = [Shipment.objects.last()]
         recomamandation_supplier_q.delete()
         return shipment
 
