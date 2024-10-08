@@ -329,6 +329,7 @@ class CompanyStocksSerializer(serializers.Serializer):
             filters['marketplace_type__icontains'] = service
         if vendor_code:
             filters['product__vendor_code__icontains'] = vendor_code
+        
         ordering_by_alphabit = "-" if sort =="Z-A" else ""
         queryset = ProductStock.objects.filter(**filters).select_related('warehouse').order_by(f"{ordering_by_alphabit}product__vendor_code")
         
@@ -340,7 +341,7 @@ class CompanyStocksSerializer(serializers.Serializer):
             date_range = WarehouseForStock.objects.filter(id__in=set(date_range))
             for warehouse in date_range:
                 date=date_from
-                day_sales = queryset.filter(date=date, warehouse=warehouse).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
+                day_sales = queryset.filter(date=date, warehouse=warehouse, company=obj).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
                 if not day_sales:
 
                     last_available_date = queryset.filter(date__lt=date, warehouse=warehouse).aggregate(last_date=Max('date'))['last_date']
@@ -353,8 +354,10 @@ class CompanyStocksSerializer(serializers.Serializer):
                         results[product_code] = {warehouse.name: 0 for warehouse in date_range}
                     results[product_code][warehouse.name] = sale['total_sales']
         else:
+
             for date in date_range:
-                day_sales = queryset.filter(date=date).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
+                day_sales = queryset.filter(date=date,company=obj).values('product__vendor_code').annotate(total_sales=Sum('quantity'))
+                
                 if not day_sales:
                     # Get the most recent data before the specified date if no data exists for this day
                     last_available_date = queryset.filter(date__lt=date).aggregate(last_date=Max('date'))['last_date']
@@ -366,9 +369,11 @@ class CompanyStocksSerializer(serializers.Serializer):
                     if product_code not in results:
                         results[product_code] = {day.strftime('%Y-%m-%d'): 0 for day in date_range}
                     results[product_code][date.strftime('%Y-%m-%d')] = sale['total_sales']
+        
         if sort.isnumeric():  
             sort = 0 if sort =="-1" else 1      
             results = dict(sorted(results.items(), key=lambda item: sum(item[1].values()), reverse=bool(int(sort))))
+        
         paginator = Paginator(list(results.items()), page_size)
         page_obj = paginator.get_page(page)
         return page_obj

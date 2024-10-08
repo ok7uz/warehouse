@@ -1,4 +1,5 @@
 from django.contrib import admin
+from rangefilter.filters import DateRangeFilter, DateTimeRangeFilter
 
 from apps.product.models import Product, ProductSale, ProductOrder, ProductStock, Warehouse, WarehouseForStock, \
       Recommendations, InProduction, Shelf, SortingWarehouse, WarehouseHistory, RecomamandationSupplier, PriorityShipments, \
@@ -41,7 +42,7 @@ class ProductOrderAdmin(admin.ModelAdmin):
 class ProductStockAdmin(admin.ModelAdmin):
     list_display = ('vendor_code', "quantity", 'date', "marketplace_type","company", "warehouse",)
     search_fields = ['product__vendor_code']
-    list_filter = ["marketplace_type", "date"]
+    list_filter = ["marketplace_type", ("date", DateRangeFilter)]
 
     def vendor_code(self, product_obj: ProductStock):
         return product_obj.product.vendor_code

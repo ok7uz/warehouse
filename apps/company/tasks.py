@@ -30,7 +30,7 @@ def update_recomendations(company):
     
     recommendations = Recommendations.objects.filter(company=company).delete()
     recommendations = []
-    total = 0
+    
     for sale in products:
 
         product = sale['id']
@@ -42,9 +42,7 @@ def update_recomendations(company):
             product = product_w.first()
         else:
             product = Product.objects.get(id=int(product))
-        total_sale = ProductSale.objects.filter(product=product,company=company, date__date__gte=date_from, date__date__lte=date_to).count()
-                        
-        warehouses = ProductStock.objects.filter(product=product,company=company).values_list("warehouse")
+        total_sale = ProductOrder.objects.filter(product=product,company=company, date__date__gte=date_from, date__date__lte=date_to).count()
         
         shelf_stock = shelf_stocks.filter(product=product,company=company).order_by("product")
         if shelf_stock.exists():
@@ -61,11 +59,16 @@ def update_recomendations(company):
         
         if not sorting:
             sorting = 0
+        
+        summ = 0
         stock = ProductStock.objects.filter(company=company,product=product)
+        
         if stock.exists():
-            stock = stock.latest("date").quantity
+            date = stock.latest("date").date
+            stock = stock.filter(date=date).aggregate(total=Sum("quantity"))["total"]
         else:
             stock = 0
+
         avg_sale = total_sale/last_sale_days
         
         try:
@@ -79,7 +82,7 @@ def update_recomendations(company):
             if stock + in_production + shelf_stock + sorting == 0:
                 recommend = 30
             recommendations.append(Recommendations(company=company,product=product, quantity=recommend,days_left=days_left))
-
+            
     build = Recommendations.objects.bulk_create(recommendations)
     return True
 

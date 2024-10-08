@@ -222,7 +222,7 @@ def update_ozon_sales():
             date_from = (datetime.now()-timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         while datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') <= datetime.now():
-            count1 = ProductSale.objects.filter(marketplace_type="ozon").count()
+            
             fbo_orders = get_paid_orders(FBO_URL,headers,date_from)
             fbs_orders = get_paid_orders(FBS_URL,headers,date_from)
             results = fbo_orders + fbs_orders
@@ -317,14 +317,15 @@ def update_ozon_sales():
                             )
                         except:
                             continue
-                try:
-                    date_from1 = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date
-                except:
-                    date_from1 = (datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') + timedelta(days=3))
-                if date_from1 != datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ'):
-                    date_from = date_from1.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-                else:
-                    date_from = (date_from1 + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            try:
+                date_from1 = ProductSale.objects.filter(marketplace_type="ozon").latest('date').date
+            except:
+                date_from1 = (datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ') + timedelta(days=3))
+            if date_from1 != datetime.strptime(date_from,'%Y-%m-%dT%H:%M:%S.%fZ'):
+                date_from = date_from1.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            else:
+                date_from = (date_from1 + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            print(date_from.strftime("%d-%m-%Y"))
 
 @app.task
 def update_ozon_orders():
@@ -904,7 +905,7 @@ def update_yandex_stocks():
     
     for yandex in YandexMarket.objects.all():
         api_key = yandex.api_key_bearer
-        fbs = yandex.fbs_campaign_id
+        # fbs = yandex.fbs_campaign_id
         fby = yandex.fby_campaign_id
         business_id = yandex.business_id
         
@@ -913,19 +914,19 @@ def update_yandex_stocks():
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {api_key}'
                 }
-        response1 = requests.post(url.format(campaignId=fbs), headers=headers)
+        # response1 = requests.post(url.format(campaignId=fbs), headers=headers)
         result1 = []
         response2 = requests.post(url.format(campaignId=fby), headers=headers)
         result2 = []
         
-        while True:
-            if response1.status_code == 200 and "paging" in response1.json()["result"].keys() and "nextPageToken" in response1.json()["result"]["paging"].keys():
-                result1 += response1.json()["result"]["warehouses"]
-                nextPageToken = response1.json()["result"]["paging"]["nextPageToken"]
-                params = {"page_token": nextPageToken}
-                response1 = requests.post(url.format(campaignId=fbs), headers=headers,params=params)
-            else:
-                break
+        # while True:
+        #     if response1.status_code == 200 and "paging" in response1.json()["result"].keys() and "nextPageToken" in response1.json()["result"]["paging"].keys():
+        #         result1 += response1.json()["result"]["warehouses"]
+        #         nextPageToken = response1.json()["result"]["paging"]["nextPageToken"]
+        #         params = {"page_token": nextPageToken}
+        #         response1 = requests.post(url.format(campaignId=fbs), headers=headers,params=params)
+        #     else:
+        #         break
         
         while True:
             if response2.status_code == 200 and "paging" in response2.json()["result"].keys() and "nextPageToken" in response2.json()["result"]["paging"].keys():
