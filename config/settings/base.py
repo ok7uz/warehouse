@@ -9,10 +9,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 LOCAL_APPS = [
-    'apps.accounts.apps.AccountsConfig',
+    
     'apps.company.apps.CompanyConfig',
     'apps.marketplaceservice.apps.MarketplaceserviceConfig',
     'apps.product.apps.ProductConfig',
+    'apps.accounts.apps.AccountsConfig',
 ]
 
 THIRD_PARTY_APPS = [
@@ -21,7 +22,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'django_celery_results',
-    'django_celery_beat',
+    'django_celery_beat'
 ]
 
 INSTALLED_APPS = [
@@ -31,6 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
     *LOCAL_APPS,
     *THIRD_PARTY_APPS,
 ]
@@ -84,11 +86,13 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200000
+
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
@@ -124,9 +128,11 @@ SPECTACULAR_SETTINGS = {
     'OAS_VERSION': '3.1.0',
     'COMPONENT_SPLIT_REQUEST': True,
     'CONTACT': {
-        'name': 'Komronbek Obloev',
-        'url': 'https://github.com/ok7uz',
-        'email': 'komronbekobloev@gmail.com',
+        'name': 'Anasxon Azamov',
+        'url': 'https://github.com/anasazamov',
+        'email': 'anasazamov55@gmail.com',
+        'phone_number': '+998990751735',
+        'telegram': 't.me/anasxon_azamov',
     },
     'SWAGGER_UI_SETTINGS': {
         'defaultModelRendering': 'model',
@@ -161,10 +167,30 @@ CELERY_BEAT_SCHEDULE = {
     },
     'update-wildberries-stocks': {
         'task': 'apps.product.tasks.update_wildberries_stocks',
-        'schedule': crontab(minute='*/20'),
+        'schedule': crontab(minute=0, hour=5),
     },
     'update-ozon-sales': {
         'task': 'apps.product.tasks.update_ozon_sales',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update-ozon-orders': {
+        'task': 'apps.product.tasks.update_ozon_orders',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update-ozon-stocks': {
+        'task': 'apps.product.tasks.update_ozon_stocks',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update_yandex_market_sales': {
+        'task': 'apps.product.tasks.update_yandex_market_sales',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update_yandex_market_orders': {
+        'task': 'apps.product.tasks.update_yandex_market_orders',
+        'schedule': crontab(minute='*/20'),
+    },
+    'update_yandex_stocks': {
+        'task': 'apps.product.tasks.update_yandex_stocks',
         'schedule': crontab(minute='*/20'),
     },
 }

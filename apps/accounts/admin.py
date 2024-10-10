@@ -10,16 +10,12 @@ class CustomUserAdmin(UserAdmin):
     Custom admin panel to manage users.
     """
 
-    # Fields displayed in the user list in admin
-    list_display = ('username', 'email', 'phone', 'is_staff', 'is_active')
+    list_display = ('username', 'email', 'phone', 'is_staff', 'is_active', 'related_users_list')
 
-    # Fields by which the user list can be filtered
     list_filter = ('is_staff', 'is_active', 'date_joined')
 
-    # Fields used for searching users
     search_fields = ('username', 'email', 'phone')
 
-    # Fields for editing user details
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         (_('Personal info'), {'fields': ('first_name', 'last_name', 'email', 'phone', 'avatar')}),
@@ -27,7 +23,6 @@ class CustomUserAdmin(UserAdmin):
         (_('Important dates'), {'fields': ('last_login', 'date_joined')}),
     )
 
-    # Fields required when creating a user in admin
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
@@ -37,13 +32,16 @@ class CustomUserAdmin(UserAdmin):
         }),
     )
 
-    # Fields that must be unique for each user
-    ordering = ('username', 'email')
     filter_horizontal = ('groups', 'user_permissions')
+    ordering = ('username', 'email')
 
+    def related_users_list(self, obj):
+        # Assuming the related users are stored in a ManyToManyField in CustomUser
+        return ", ".join([user.username for user in obj.author_user.all()])
 
-# Registering the CustomUser model and admin panel
+    related_users_list.short_description = "Related Users"
+
 admin.site.register(CustomUser, CustomUserAdmin)
 
-admin.site.site_header = "InnoTreyd Admin Panel"
-admin.site.site_title = "InnoTreyd Admin Panel"
+admin.site.site_header = "InnoTreid Admin Panel"
+admin.site.site_title = "InnoTreid Admin Panel"
