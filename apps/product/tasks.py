@@ -19,20 +19,14 @@ ozon_product_info_url = 'https://api-seller.ozon.ru/v2/product/info'
 yandex_market_sales_url = 'https://api.partner.market.yandex.ru/reports/shows-sales/generate?format=CSV'
 yandex_report_url = 'https://api.partner.market.yandex.ru/reports/info/{report_id}'
 
-def get_warehouse_name_wildberries(warehouse_id, api_key):
+def get_warehouse_data( api_key):
     headers = {
         "Authorization": api_key
     }
     response = requests.get("https://supplies-api.wildberries.ru/api/v1/warehouses", headers=headers)
-    if response.status_code == 200:
-        for item in response.json():
-            if warehouse_id == item['ID']:
-                return item['name']
-            else:
-                return False
-    else:
-        return False
-    
+    print(response.text)
+    return response.json()
+
 def not_official_api_wildberries(nmId, api_key):
     
     response = requests.get(f"https://card.wb.ru/cards/detail?dest=-446085&regions=80,83,38,4,64,33,68,70,30,40,86,75,69,1,66,110,22,48,31,71,112,114&nm={nmId}")
@@ -42,10 +36,7 @@ def not_official_api_wildberries(nmId, api_key):
         for item in products:
             for item2 in item["sizes"]:
                 for item3 in item2['stocks']:
-                    warehouse_id = item3['wh']
-                    warhouse_name = get_warehouse_name_wildberries(warehouse_id=warehouse_id,api_key=api_key)
-                    if type(warhouse_name) != bool:
-                        result.append({"warehouse_name": warhouse_name, "stock": item3['qty']})
+                    result.append(item3)
     return result
 
 @app.task
@@ -157,7 +148,8 @@ def update_wildberries_stocks():
     for wildberries in Wildberries.objects.all():
         wb_api_key = wildberries.wb_api_key
         response = requests.get(wildberries_stocks_url, headers={'Authorization': f'Bearer {wb_api_key}'})
-
+        warehouse_data = get_warehouse_data(wb_api_key)
+        
         for item in response.json():
             
             
@@ -172,25 +164,23 @@ def update_wildberries_stocks():
                 product = product.first()
             else:
                 product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
-           
-            for item_not_official in not_official_api_wildberries(api_key=wb_api_key,nmId=item['nmId']):
+            result_w = not_official_api_wildberries(api_key=wb_api_key,nmId=item['nmId'])
+            for item_not_official in result_w:
+                print(item_not_official)
+                quantity = item_not_official['qty']
+                for warehouse_item in warehouse_data:
+                    if item_not_official['wh'] == warehouse_item['ID']:
+                        warehouse = warehouse_item['name']
+                        skip_outer_loop = False
+                        break
+                    else:
+                        skip_outer_loop = True
+                        break
                 
-                quantity = item_not_official['stock']
-                warehouse = item['warehouse_name']
-                
-                for warehouse_item in response.json():
-                    try:
-                        if warehouse_item['warehouseName'] == warehouse:
-                            check = True
-                            break
-                        else:
-                            check_w = False
-                    except:
-                        check_w = False
-                        continue
-                        
-                if not check_w:
+                if skip_outer_loop:
                     continue
+                
+                
 
                 warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="wildberries")
                 
