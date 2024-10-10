@@ -363,7 +363,7 @@ def update_ozon_sales():
                 date_from = date_from1.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
             else:
                 date_from = (date_from1 + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-            print(date_from.strftime("%d-%m-%Y"))
+            
 
 @app.task
 def update_ozon_orders():
@@ -930,8 +930,16 @@ def get_warehouse_name(business_id,headers, warehouse_id):
     warehouse_by_busness_id_url = f"https://api.partner.market.yandex.ru/businesses/{business_id}/warehouses"               
     warehouse_url = f"https://api.partner.market.yandex.ru/warehouses"    
 
-    get_warehouse_name_l = requests.get(warehouse_by_busness_id_url,headers=headers).json()["result"]["warehouses"]
-    get_warehouse_name_l_2 = requests.get(warehouse_url,headers=headers).json()["result"]["warehouses"]
+    get_warehouse_name_l = requests.get(warehouse_by_busness_id_url,headers=headers)
+    if get_warehouse_name_l.status_code == 200:
+        get_warehouse_name_l = get_warehouse_name_l.json()["result"]["warehouses"]
+    else:
+        get_warehouse_name_l = []
+    get_warehouse_name_l_2 = requests.get(warehouse_url,headers=headers)
+    if get_warehouse_name_l_2.status_code == 200:
+        get_warehouse_name_l_2 = get_warehouse_name_l_2.json()["result"]["warehouses"]
+    else:
+        get_warehouse_name_l = []
     results = get_warehouse_name_l + get_warehouse_name_l_2
     
     for item in results:
