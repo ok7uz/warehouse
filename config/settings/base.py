@@ -88,7 +88,7 @@ LANGUAGE_CODE = 'en-us'
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 200000
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
@@ -167,7 +167,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     'update-wildberries-stocks': {
         'task': 'apps.product.tasks.update_wildberries_stocks',
-        'schedule': crontab(minute='*/20'),
+        'schedule': crontab(minute=0, hour=5),
     },
     'update-ozon-sales': {
         'task': 'apps.product.tasks.update_ozon_sales',

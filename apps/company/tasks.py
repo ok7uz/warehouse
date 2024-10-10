@@ -88,6 +88,7 @@ def update_recomendations(company):
 
 @app.task
 def update_recomendation_supplier(company):
+    
     settings = CompanySettings.objects.get(company=company)
     last_sale_days = settings.last_sale_days
     next_sale_days = settings.next_sale_days
@@ -95,19 +96,37 @@ def update_recomendation_supplier(company):
     date_from = date_to - timedelta(days=last_sale_days)
     company = Company.objects.get(id=company)
 
-    products = ProductSale.objects.filter(company=company).order_by("product_id").distinct("product_id").values_list("product_id",flat=True)
+    products = ProductOrder.objects.filter(company=company).order_by("product_id").distinct("product_id").values_list("product_id",flat=True)
     
     for item in products:
-        warehouses_w = ProductSale.objects.filter(product=item, marketplace_type="wildberries").values_list("warehouse", flat=True)
-        warehouses_o = ProductSale.objects.filter(product=item, marketplace_type="ozon").values_list("warehouse", flat=True)
-        warehouses_y = ProductSale.objects.filter(product=item, marketplace_type="yandexmarket").values_list("warehouse", flat=True)
+        warehouses_w = ProductOrder.objects.filter(product=item, marketplace_type="wildberries")
+        if warehouses_w.exists():
+            date = warehouses_w.latest("date").date
+            warehouses_w = warehouses_w.filter(date__date=date).values_list("warehouse", flat=True)
+        else:
+            warehouses_w = []
+
+        warehouses_o = ProductOrder.objects.filter(product=item, marketplace_type="ozon")
+        if warehouses_o.exists():
+            date = warehouses_o.latest("date").date
+            warehouses_o = warehouses_o.filter(date__date=date).values_list("warehouse", flat=True)
+        else:
+            warehouses_o = []
+        
+        warehouses_y = ProductOrder.objects.filter(product=item, marketplace_type="yandexmarket")
+        if warehouses_y.exists():
+            date = warehouses_y.latest("date").date
+            warehouses_y = warehouses_y.filter(date__date=date).values_list("warehouse", flat=True)
+        else:
+            warehouses_y = []
+
         item = Product.objects.get(id=item)
         
         for w_item in warehouses_w:
             
             name = Warehouse.objects.get(id=w_item).name
             w_item = Warehouse.objects.get(id=w_item)
-            sale = ProductSale.objects.filter(product=item, warehouse=w_item, date__range=(date_from,date_to),marketplace_type="wildberries").count()
+            sale = ProductOrder.objects.filter(product=item, warehouse=w_item, date__range=(date_from,date_to),marketplace_type="wildberries").count()
             shelf = Shelf.objects.filter(product=item)
             stock_w = WarehouseForStock.objects.filter(name=name)
             

@@ -19,6 +19,35 @@ ozon_product_info_url = 'https://api-seller.ozon.ru/v2/product/info'
 yandex_market_sales_url = 'https://api.partner.market.yandex.ru/reports/shows-sales/generate?format=CSV'
 yandex_report_url = 'https://api.partner.market.yandex.ru/reports/info/{report_id}'
 
+def get_warehouse_name_wildberries(warehouse_id, api_key):
+    headers = {
+        "Authorization": api_key
+    }
+    response = requests.get("https://supplies-api.wildberries.ru/api/v1/warehouses", headers=headers)
+    if response.status_code == 200:
+        for item in response.json():
+            if warehouse_id == item['ID']:
+                return item['name']
+            else:
+                return False
+    else:
+        return False
+    
+def not_official_api_wildberries(nmId, api_key):
+    
+    response = requests.get(f"https://card.wb.ru/cards/detail?dest=-446085&regions=80,83,38,4,64,33,68,70,30,40,86,75,69,1,66,110,22,48,31,71,112,114&nm={nmId}")
+    result = []
+    if response.status_code == 200:
+        products = response.json()['data']['products']
+        for item in products:
+            for item2 in item["sizes"]:
+                for item3 in item2['stocks']:
+                    warehouse_id = item3['wh']
+                    warhouse_name = get_warehouse_name_wildberries(warehouse_id=warehouse_id,api_key=api_key)
+                    if type(warhouse_name) != bool:
+                        result.append({"warehouse_name": warhouse_name, "stock": item3['qty']})
+    return result
+
 @app.task
 def update_wildberries_sales():
     
@@ -130,30 +159,49 @@ def update_wildberries_stocks():
         response = requests.get(wildberries_stocks_url, headers={'Authorization': f'Bearer {wb_api_key}'})
 
         for item in response.json():
+            
+            
+            company = wildberries.company
+            date = datetime.now()
             try:
-                warehouse = item['warehouseName']
+                barcode = item['barcode']
             except:
                 continue
-            quantity = item['quantity']
-            company = wildberries.company
-            date = datetime.strptime(item["lastChangeDate"],"%Y-%m-%dT%H:%M:%S")
-            
-            barcode = item['barcode']
             product = Product.objects.filter(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
             if product.exists():
                 product = product.first()
             else:
                 product, _ = Product.objects.get_or_create(vendor_code=item['supplierArticle'], barcode=barcode, marketplace_type="wildberries")
-            warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="wildberries")
-            
-            product_stock, created_s = ProductStock.objects.get_or_create(
-                product=product,
-                warehouse=warehouse_obj,
-                marketplace_type = "wildberries",
-                company=company,
-                date=date,
-                quantity=quantity
-            )
+           
+            for item_not_official in not_official_api_wildberries(api_key=wb_api_key,nmId=item['nmId']):
+                
+                quantity = item_not_official['stock']
+                warehouse = item['warehouse_name']
+                
+                for warehouse_item in response.json():
+                    try:
+                        if warehouse_item['warehouseName'] == warehouse:
+                            check = True
+                            break
+                        else:
+                            check_w = False
+                    except:
+                        check_w = False
+                        continue
+                        
+                if not check_w:
+                    continue
+
+                warehouse_obj, created_w = WarehouseForStock.objects.get_or_create(name=warehouse, marketplace_type="wildberries")
+                
+                product_stock, created_s = ProductStock.objects.get_or_create(
+                    product=product,
+                    warehouse=warehouse_obj,
+                    marketplace_type = "wildberries",
+                    company=company,
+                    date=date,
+                    quantity=quantity
+                )
             
             
     return "Succes"

@@ -11,6 +11,7 @@ from django_celery_results.models import TaskResult
 class ProductAdmin(admin.ModelAdmin):
     list_display = ['vendor_code',"id"]
     search_fields = ['vendor_code', "id"]
+    list_filter = ["marketplace_type"]
 
 @admin.register(ProductSale)
 class ProductSaleAdmin(admin.ModelAdmin):

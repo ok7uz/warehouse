@@ -27,4 +27,5 @@ urlpatterns = [
     path('companies/<uuid:shelf_id>/update-shelf/', UpdateShelfView.as_view(), name='update-shelf'), 
     path('companies/<uuid:inproduction_id>/update-prodcution/', UpdateInProductionView.as_view(), name='company-update-inproductions'), 
     path('companies/<uuid:uuid>/', CompanyDetailView.as_view(), name='company-update'),
+    path('companies/update-wildberries-stock/', UpdateWildberriesStock.as_view(), name='update-update-wildberries'),
 ]

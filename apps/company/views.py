@@ -171,7 +171,7 @@ class CompanyStocksView(APIView):
         parameters=COMPANY_SALES_PARAMETRS
     )
     def get(self, request, company_id):
-        update_wildberries_stocks.delay()
+        
         update_ozon_stocks.delay()
         update_yandex_stocks.delay()
         company = get_object_or_404(Company,id=company_id)
@@ -875,3 +875,14 @@ class ChangeRegionTimeView(APIView):
             serializer = PriorityShipmentsSerializer(priority)
             return Response(serializer.data,status.HTTP_200_OK)
         return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
+    
+class UpdateWildberriesStock(APIView):
+    permission_classes = [IsSuperUser | IsProductionManager | IsManager | IsWarehouseWorker]
+    @extend_schema(
+    description='Update Wildberries Stock',
+    tags=["Company"],
+    responses={200: {"message": "Calculation started", "task_id": 465456}}
+        )
+    def get(self, request):
+        task = update_wildberries_stocks.delay()
+        return Response({"message": "Calculation started", "task_id": task.id},status.HTTP_200_OK)
