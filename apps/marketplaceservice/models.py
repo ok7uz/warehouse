@@ -59,8 +59,8 @@ class YandexMarket(models.Model):
     """
     id = models.AutoField(primary_key=True, editable=False, unique=True, verbose_name='Уникальный идентификатор')
     api_key_bearer = models.CharField(_("API ключ Bearer YandexMarket"), max_length=1000, null=True, blank=True)
-    fby_campaign_id = models.CharField(_("FBS Кампания ID YandexMarket"), max_length=1000, null=True, blank=True)
-    fbs_campaign_id = models.CharField(_("FBY Кампания ID YandexMarket"), max_length=1000, null=True, blank=True)
+    fby_campaign_id = models.CharField(_("FBY Кампания ID YandexMarket"), max_length=1000, null=True, blank=True)
+    fbs_campaign_id = models.CharField(_("FBS Кампания ID YandexMarket"), max_length=1000, null=True, blank=True)
     business_id = models.CharField(_("Бизнес ID YandexMarket"), max_length=1000, null=True, blank=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True,
                                 related_name="YandexMarketCompany", verbose_name="Компания")

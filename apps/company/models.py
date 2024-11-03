@@ -1,9 +1,7 @@
 import uuid
 
 from django.db import models
-
 from apps.accounts.models import CustomUser
-
 
 class Company(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
@@ -16,3 +14,12 @@ class Company(models.Model):
         verbose_name = "Company"
         verbose_name_plural = "Companies"
         ordering = ('name',)
+
+    def __str__(self) -> str:
+        return self.name
+    
+class CompanySettings(models.Model):
+
+    last_sale_days = models.IntegerField()
+    next_sale_days = models.IntegerField()
+    company = models.ForeignKey(to=Company, on_delete=models.CASCADE)

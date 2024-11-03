@@ -9,10 +9,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 LOCAL_APPS = [
-    'apps.accounts.apps.AccountsConfig',
+    
     'apps.company.apps.CompanyConfig',
     'apps.marketplaceservice.apps.MarketplaceserviceConfig',
     'apps.product.apps.ProductConfig',
+    'apps.accounts.apps.AccountsConfig',
 ]
 
 THIRD_PARTY_APPS = [
@@ -21,7 +22,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'django_celery_results',
-    'django_celery_beat',
+    'django_celery_beat'
 ]
 
 INSTALLED_APPS = [
@@ -31,6 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
     *LOCAL_APPS,
     *THIRD_PARTY_APPS,
 ]
@@ -84,11 +86,13 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 200000
+
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
@@ -124,9 +128,11 @@ SPECTACULAR_SETTINGS = {
     'OAS_VERSION': '3.1.0',
     'COMPONENT_SPLIT_REQUEST': True,
     'CONTACT': {
-        'name': 'Komronbek Obloev',
-        'url': 'https://github.com/ok7uz',
-        'email': 'komronbekobloev@gmail.com',
+        'name': 'Anasxon Azamov',
+        'url': 'https://github.com/anasazamov',
+        'email': 'anasazamov55@gmail.com',
+        'phone_number': '+998990751735',
+        'telegram': 't.me/anasxon_azamov',
     },
     'SWAGGER_UI_SETTINGS': {
         'defaultModelRendering': 'model',
@@ -134,11 +140,11 @@ SPECTACULAR_SETTINGS = {
 }
 
 CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Use Redis as the broker
-CELERY_RESULT_BACKEND = 'django-db'  # Store results in Django database
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Store results in Django database
 CELERY_CACHE_BACKEND = 'django-cache'  # Use Django cache
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-CELERY_TIMEZONE = 'UTC'
+CELERY_TIMEZONE = 'Europe/Moscow'
 
 CACHES = {
     'default': {
@@ -151,22 +157,24 @@ CACHES = {
 }
 
 CELERY_BEAT_SCHEDULE = {
-    'update-wildberries-sales': {
-        'task': 'apps.product.tasks.update_wildberries_sales',
-        'schedule': crontab(minute='*/20'),
-    },
-    'update-wildberries-orders': {
-        'task': 'apps.product.tasks.update_wildberries_orders',
-        'schedule': crontab(minute='*/20'),
-    },
-    'update-wildberries-stocks': {
-        'task': 'apps.product.tasks.update_wildberries_stocks',
-        'schedule': crontab(minute='*/20'),
-    },
-    'update-ozon-sales': {
-        'task': 'apps.product.tasks.update_ozon_sales',
-        'schedule': crontab(minute='*/20'),
-    },
+    'synchronous-algorithm': {
+        'task': 'apps.product.tasks.synchronous_algorithm',
+        'schedule': crontab(minute='*/40')},
+        'options': {
+            'once': {
+                'graceful': True, 
+            }
+        }
+    
+}
+
+CELERY_ONCE = {
+    'backend': 'celery_once.backends.Redis',  
+    'settings': {
+        'url': 'redis://localhost:6379/1',  
+        'default_timeout': 60 * 60 , 
+        'blocking': True
+    }
 }
 
 CORS_ALLOW_ALL_ORIGINS = True

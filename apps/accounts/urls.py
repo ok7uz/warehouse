@@ -14,5 +14,6 @@ urlpatterns = [
     path('profile', UserProfilesView.as_view(), name='user-profile'),
 
     path('detail', UserDetailsView.as_view(), name='user-detail'),
+    path('detail/<uuid:uuid>', WithUUIDView.as_view(), name='user-detail-uuid'),
     path('gorups', GroupsListViews.as_view(), name='group-list'),
 ]

@@ -15,5 +15,9 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT', default=5432, cast=int),
+        'OPTIONS': {
+            'options': '-c search_path=django,public -c statement_timeout=50000',
+        },
+        'CONN_MAX_AGE': 6000,
     }
 }

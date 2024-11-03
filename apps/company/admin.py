@@ -1,5 +1,5 @@
 from django.contrib import admin
-from apps.company.models import Company
+from apps.company.models import Company, CompanySettings
 
 
 class CompanyAdmin(admin.ModelAdmin):
@@ -22,3 +22,6 @@ class CompanyAdmin(admin.ModelAdmin):
 
 # Регистрация модели компании и админской панели
 admin.site.register(Company, CompanyAdmin)
+@admin.register(CompanySettings)
+class SettingsAdminView(admin.ModelAdmin):
+    list_display = ["id", 'last_sale_days', 'next_sale_days', 'company']
